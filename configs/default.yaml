@@ -1,0 +1,29 @@
+# nginx-manager configuration.
+#
+# This file is installed to /etc/nginx-manager/nginx-manager.yaml by
+# scripts/install.sh. All paths used by nginx-manager are centralized here;
+# nothing is hard-coded in the application itself.
+
+nginx:
+  config_dir: /etc/nginx
+  sites_available: /etc/nginx/sites-available
+  sites_enabled: /etc/nginx/sites-enabled
+  binary_path: nginx
+
+certificates:
+  # Centralized certificate directory. Certificates are obtained manually
+  # (e.g. via certbot with a DNS challenge) and placed here as:
+  #   <directory>/<domain>/fullchain.pem
+  #   <directory>/<domain>/privkey.pem
+  directory: /etc/nginx/certs
+
+logs:
+  nginx_directory: /var/log/nginx
+  audit_file: /var/log/nginx-manager/audit.log
+
+backup:
+  directory: /etc/nginx-manager/backups
+  keep_count: 20
+
+access_lists:
+  directory: /etc/nginx-manager/accesslists

@@ -1,0 +1,50 @@
+# Managed by nginx-manager. Manual edits are preserved but will not be
+# tracked by the application unless the host is re-imported.
+# Domain: {{ .Host.ServerName }}
+
+server {
+    listen {{ .Host.Listen }};
+{{- if .Host.SSL.Enabled }}
+    listen {{ .Host.ListenSSL }} ssl{{ if .Host.SSL.HTTP2 }} http2{{ end }};
+{{- end }}
+    server_name {{ .Host.ServerName }}{{ range .Host.ServerAlias }} {{ . }}{{ end }};
+
+{{- if .Host.SSL.Enabled }}
+{{- if .Host.SSL.ForceHTTPS }}
+
+    if ($scheme != "https") {
+        return 301 https://$host$request_uri;
+    }
+{{- end }}
+
+    ssl_certificate {{ .Host.SSL.CertFile }};
+    ssl_certificate_key {{ .Host.SSL.KeyFile }};
+{{- end }}
+
+{{- if .Host.AccessListName }}
+
+    auth_basic "Restricted";
+    auth_basic_user_file {{ .AccessListFile }};
+{{- end }}
+
+{{- if .Host.AccessLog }}
+    access_log {{ .AccessLogPath }};
+{{- else }}
+    access_log off;
+{{- end }}
+{{- if .Host.ErrorLog }}
+    error_log {{ .ErrorLogPath }};
+{{- else }}
+    error_log off;
+{{- end }}
+
+{{- if eq (printf "%v" .Host.Mode) "static" }}
+
+    root {{ .Host.Root }};
+    index index.html index.htm;
+{{- end }}
+
+{{ range .Host.Locations }}
+{{- template "location.tmpl" . }}
+{{ end -}}
+}

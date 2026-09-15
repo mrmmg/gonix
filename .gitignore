@@ -1,0 +1,19 @@
+# Compiled binaries
+/nginx-manager
+/nginx-manager-linux-*
+
+# Build artifacts
+*.exe
+*.test
+*.out
+
+# Local development / runtime state - never commit real Nginx config,
+# certificates, backups, or logs generated while testing.
+/etc/
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

@@ -1,0 +1,43 @@
+{{ define "location.tmpl" }}    location {{ .Path }} {
+{{- if .IsCustom }}
+        # User-defined configuration
+{{ .CustomConfig }}
+{{- else }}
+        proxy_pass {{ .Proxy.UpstreamURL }};
+        proxy_http_version {{ .Proxy.HTTPVersion }};
+{{- if .Proxy.ForwardHost }}
+        proxy_set_header Host $host;
+{{- end }}
+{{- if .Proxy.ForwardFor }}
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+{{- end }}
+{{- if .Proxy.ForwardProto }}
+        proxy_set_header X-Forwarded-Proto $scheme;
+{{- end }}
+{{- if .Proxy.WebSocket }}
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+{{- end }}
+{{- if .Proxy.ConnectTimeout }}
+        proxy_connect_timeout {{ .Proxy.ConnectTimeout }};
+{{- end }}
+{{- if .Proxy.ReadTimeout }}
+        proxy_read_timeout {{ .Proxy.ReadTimeout }};
+{{- end }}
+{{- if .Proxy.SendTimeout }}
+        proxy_send_timeout {{ .Proxy.SendTimeout }};
+{{- end }}
+{{- if .Proxy.MaxBodySize }}
+        client_max_body_size {{ .Proxy.MaxBodySize }};
+{{- end }}
+{{- if not .Proxy.BufferingEnabled }}
+        proxy_buffering off;
+{{- end }}
+{{- if .AccessListName }}
+        auth_basic "Restricted";
+        auth_basic_user_file {{ .AccessListName }};
+{{- end }}
+{{- end }}
+    }
+{{- end }}
