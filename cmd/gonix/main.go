@@ -1,4 +1,4 @@
-// Command nginx-manager is an interactive terminal UI for managing Nginx
+// Command GoNix is an interactive terminal UI for managing Nginx
 // virtual hosts, TLS certificates, access lists and the Nginx service
 // itself, without hiding the underlying, human-editable Nginx configuration.
 package main
@@ -9,30 +9,30 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/accesslist"
-	"github.com/shiva/nginx-manager/internal/audit"
-	"github.com/shiva/nginx-manager/internal/backup"
-	"github.com/shiva/nginx-manager/internal/config"
-	"github.com/shiva/nginx-manager/internal/hosts"
-	"github.com/shiva/nginx-manager/internal/nginx"
-	"github.com/shiva/nginx-manager/internal/system"
-	"github.com/shiva/nginx-manager/internal/tui"
+	"github.com/shiva/gonix/internal/accesslist"
+	"github.com/shiva/gonix/internal/audit"
+	"github.com/shiva/gonix/internal/backup"
+	"github.com/shiva/gonix/internal/config"
+	"github.com/shiva/gonix/internal/hosts"
+	"github.com/shiva/gonix/internal/nginx"
+	"github.com/shiva/gonix/internal/system"
+	"github.com/shiva/gonix/internal/tui"
 )
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "nginx-manager:", err)
+		fmt.Fprintln(os.Stderr, "gonix:", err)
 		os.Exit(1)
 	}
 }
 
 func run() error {
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("this operation requires root privileges.\nPlease run nginx-manager with sudo:\n\n    sudo nginx-manager")
+		return fmt.Errorf("this operation requires root privileges.\nPlease run gonix with sudo:\n\n    sudo gonix")
 	}
 
 	cfgPath := config.DefaultPath
-	if v := os.Getenv("NGINX_MANAGER_CONFIG"); v != "" {
+	if v := os.Getenv("GONIX_CONFIG"); v != "" {
 		cfgPath = v
 	}
 	cfg, err := config.Load(cfgPath)

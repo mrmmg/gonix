@@ -16,7 +16,7 @@ func TestLoadReturnsDefaultsWhenMissing(t *testing.T) {
 }
 
 func TestSaveAndLoadRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "nginx-manager.yaml")
+	path := filepath.Join(t.TempDir(), "gonix.yaml")
 	cfg := Default()
 	cfg.Nginx.SitesAvailable = "/custom/sites-available"
 

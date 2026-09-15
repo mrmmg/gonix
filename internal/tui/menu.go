@@ -29,7 +29,7 @@ func newMainMenu(deps Deps) *mainMenu {
 			{title: "Certificates", desc: "inspect TLS certificates"},
 			{title: "Nginx Status", desc: "service control & process monitoring"},
 			{title: "Access Lists", desc: "HTTP Basic Authentication"},
-			{title: "Settings", desc: "nginx-manager configuration"},
+			{title: "Settings", desc: "GoNix configuration"},
 			{title: "Exit", desc: ""},
 		}),
 	}
@@ -71,5 +71,5 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 func (s *mainMenu) View(width, height int) string {
 	body := headerStyle.Render("Main Menu") + "\n" + s.menu.View()
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"q", "Quit"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

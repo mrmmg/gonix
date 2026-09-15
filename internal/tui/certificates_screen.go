@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/certificates"
+	"github.com/shiva/gonix/internal/certificates"
 )
 
 type certificatesScreen struct {
@@ -108,5 +108,5 @@ func (s *certificatesScreen) View(width, height int) string {
 		body += s.menu.View()
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Details"}, {"r", "Refresh"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

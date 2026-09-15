@@ -1,6 +1,6 @@
 // Package logs provides access/error log path helpers and generates the
 // logrotate configuration used to rotate both Nginx's own logs and
-// nginx-manager's audit log.
+// GoNix's audit log.
 package logs
 
 import (
@@ -20,8 +20,8 @@ func ErrorLogPath(nginxLogDir, serverName string) string {
 }
 
 // LogrotateConfig renders a logrotate configuration snippet covering both
-// per-host Nginx logs and the nginx-manager audit log. It is written to disk
-// by the installer (scripts/install.sh) at /etc/logrotate.d/nginx-manager.
+// per-host Nginx logs and the GoNix audit log. It is written to disk
+// by the installer (scripts/install.sh) at /etc/logrotate.d/gonix.
 func LogrotateConfig(nginxLogDir, auditLogFile string) string {
 	return fmt.Sprintf(`%s/*.access.log %s/*.error.log {
     daily

@@ -1,7 +1,7 @@
-# nginx-manager configuration.
+# gonix configuration.
 #
-# This file is installed to /etc/nginx-manager/nginx-manager.yaml by
-# scripts/install.sh. All paths used by nginx-manager are centralized here;
+# This file is installed to /etc/gonix/gonix.yaml by
+# scripts/install.sh. All paths used by gonix are centralized here;
 # nothing is hard-coded in the application itself.
 
 nginx:
@@ -19,11 +19,11 @@ certificates:
 
 logs:
   nginx_directory: /var/log/nginx
-  audit_file: /var/log/nginx-manager/audit.log
+  audit_file: /var/log/gonix/audit.log
 
 backup:
-  directory: /etc/nginx-manager/backups
+  directory: /etc/gonix/backups
   keep_count: 20
 
 access_lists:
-  directory: /etc/nginx-manager/accesslists
+  directory: /etc/gonix/accesslists

@@ -1,4 +1,4 @@
-module github.com/shiva/nginx-manager
+module github.com/shiva/gonix
 
 go 1.26.6
 

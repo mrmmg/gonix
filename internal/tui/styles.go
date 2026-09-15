@@ -1,4 +1,4 @@
-// Package tui implements the interactive terminal UI for nginx-manager,
+// Package tui implements the interactive terminal UI for GoNix,
 // built on Bubble Tea/Bubbles/Lip Gloss. It never touches Nginx
 // configuration files directly; all mutations go through internal/hosts,
 // internal/accesslist, internal/certificates and internal/system.

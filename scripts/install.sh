@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 #
-# nginx-manager installer.
+# gonix installer.
 #
-# Builds (if needed) and installs the nginx-manager binary, its
+# Builds (if needed) and installs the gonix binary, its
 # configuration file and a logrotate policy for its audit log. Run as root:
 #
 #   sudo ./scripts/install.sh
 #
 set -euo pipefail
 
-BIN_NAME="nginx-manager"
+BIN_NAME="gonix"
 INSTALL_PREFIX="${INSTALL_PREFIX:-/usr/local/bin}"
-CONFIG_DIR="/etc/nginx-manager"
-CONFIG_FILE="${CONFIG_DIR}/nginx-manager.yaml"
-LOGROTATE_FILE="/etc/logrotate.d/nginx-manager"
+CONFIG_DIR="/etc/gonix"
+CONFIG_FILE="${CONFIG_DIR}/gonix.yaml"
+LOGROTATE_FILE="/etc/logrotate.d/gonix"
 BACKUP_DIR="${CONFIG_DIR}/backups"
 ACCESSLIST_DIR="${CONFIG_DIR}/accesslists"
-AUDIT_LOG_DIR="/var/log/nginx-manager"
+AUDIT_LOG_DIR="/var/log/gonix"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -46,7 +46,7 @@ check_dependencies() {
         command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
     done
     if ! command -v nginx >/dev/null 2>&1; then
-        warn "nginx binary not found in PATH; install and configure Nginx before using nginx-manager"
+        warn "nginx binary not found in PATH; install and configure Nginx before using gonix"
     fi
     if ! command -v logrotate >/dev/null 2>&1; then
         warn "logrotate not found; log rotation for /var/log/nginx and the audit log will not run automatically"
@@ -63,7 +63,7 @@ build_binary() {
     fi
     command -v go >/dev/null 2>&1 || die "Go toolchain not found; install Go or place a prebuilt '${BIN_NAME}' binary in the repository root"
     log "building ${BIN_NAME} from source"
-    (cd "$REPO_ROOT" && go build -trimpath -ldflags="-s -w" -o "$BIN_NAME" ./cmd/nginx-manager)
+    (cd "$REPO_ROOT" && go build -trimpath -ldflags="-s -w" -o "$BIN_NAME" ./cmd/gonix)
 }
 
 install_binary() {
@@ -101,7 +101,7 @@ install_logrotate() {
     endscript
 }
 
-/var/log/nginx-manager/audit.log {
+/var/log/gonix/audit.log {
     weekly
     rotate 12
     missingok
@@ -122,7 +122,7 @@ main() {
     install_logrotate
 
     log "installation complete."
-    log "Run nginx-manager with: sudo ${BIN_NAME}"
+    log "Run gonix with: sudo ${BIN_NAME}"
 }
 
 main "$@"

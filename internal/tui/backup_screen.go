@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/backup"
-	"github.com/shiva/nginx-manager/internal/nginx"
+	"github.com/shiva/gonix/internal/backup"
+	"github.com/shiva/gonix/internal/nginx"
 )
 
 // backupScreen lists stored configuration snapshots for a host and lets the
@@ -100,5 +100,5 @@ func (s *backupScreen) View(width, height int) string {
 		body += s.menu.View()
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Restore"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

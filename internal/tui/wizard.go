@@ -227,7 +227,7 @@ func (w *wizardScreen) View(width, height int) string {
 	}
 
 	help := [][2]string{{"Enter", "Next"}, {"Esc", "Cancel"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }
 
 func visibleStepIndex(w *wizardScreen) int {

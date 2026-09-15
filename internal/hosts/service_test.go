@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shiva/nginx-manager/internal/audit"
-	"github.com/shiva/nginx-manager/internal/backup"
-	"github.com/shiva/nginx-manager/internal/nginx"
+	"github.com/shiva/gonix/internal/audit"
+	"github.com/shiva/gonix/internal/backup"
+	"github.com/shiva/gonix/internal/nginx"
 )
 
 // fakeTester lets tests control the outcome of `nginx -t` without a real

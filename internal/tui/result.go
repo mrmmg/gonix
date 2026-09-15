@@ -38,5 +38,5 @@ func (s *resultScreen) View(width, height int) string {
 		body += errorBoxStyle.Render("Error: " + s.message)
 	}
 	help := [][2]string{{"Enter", "Continue"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

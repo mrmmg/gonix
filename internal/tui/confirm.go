@@ -49,5 +49,5 @@ func (s *confirmScreen) View(width, height int) string {
 	}
 	body += no + "    " + yes
 	help := [][2]string{{"y/n", "Confirm"}, {"Enter", "Select"}, {"Esc", "Cancel"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

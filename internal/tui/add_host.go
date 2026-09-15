@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/certificates"
-	"github.com/shiva/nginx-manager/internal/hosts"
-	"github.com/shiva/nginx-manager/internal/nginx"
+	"github.com/shiva/gonix/internal/certificates"
+	"github.com/shiva/gonix/internal/hosts"
+	"github.com/shiva/gonix/internal/nginx"
 )
 
 // newAddHostWizard builds the "Add New Host" interactive workflow described

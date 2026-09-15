@@ -1,5 +1,5 @@
 // Package config centralizes all filesystem paths and tunables used across
-// nginx-manager, loaded from a YAML file so nothing is hard-coded.
+// GoNix, loaded from a YAML file so nothing is hard-coded.
 package config
 
 import (
@@ -10,8 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DefaultPath is where nginx-manager looks for its configuration file.
-const DefaultPath = "/etc/nginx-manager/nginx-manager.yaml"
+// DefaultPath is where GoNix looks for its configuration file.
+const DefaultPath = "/etc/gonix/gonix.yaml"
 
 // Config is the root configuration structure, mirroring the YAML file.
 type Config struct {
@@ -62,20 +62,20 @@ func Default() *Config {
 		},
 		Logs: LogsConfig{
 			NginxDirectory: "/var/log/nginx",
-			AuditFile:      "/var/log/nginx-manager/audit.log",
+			AuditFile:      "/var/log/gonix/audit.log",
 		},
 		Backup: BackupConfig{
-			Directory: "/etc/nginx-manager/backups",
+			Directory: "/etc/gonix/backups",
 			KeepCount: 20,
 		},
 		AccessLists: AccessListsConfig{
-			Directory: "/etc/nginx-manager/accesslists",
+			Directory: "/etc/gonix/accesslists",
 		},
 	}
 }
 
 // Load reads the configuration file at path. If the file does not exist, the
-// built-in defaults are returned without error so nginx-manager keeps
+// built-in defaults are returned without error so GoNix keeps
 // working on a fresh install before the admin has customized anything.
 func Load(path string) (*Config, error) {
 	cfg := Default()

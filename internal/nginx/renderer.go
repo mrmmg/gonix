@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/shiva/nginx-manager/templates"
+	"github.com/shiva/gonix/templates"
 )
 
 // Renderer turns a Host domain object into a plain-text Nginx configuration

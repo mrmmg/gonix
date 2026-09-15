@@ -6,7 +6,7 @@ import (
 )
 
 func TestRenderReverseProxyHost(t *testing.T) {
-	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/nginx-manager/accesslists")
+	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestRenderReverseProxyHost(t *testing.T) {
 }
 
 func TestRenderCustomLocation(t *testing.T) {
-	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/nginx-manager/accesslists")
+	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}

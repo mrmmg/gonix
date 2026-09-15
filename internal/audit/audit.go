@@ -1,5 +1,5 @@
 // Package audit implements an append-only audit trail of changes made
-// through nginx-manager, independent of the Nginx error/access logs.
+// through GoNix, independent of the Nginx error/access logs.
 package audit
 
 import (

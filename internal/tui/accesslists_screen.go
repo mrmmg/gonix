@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/accesslist"
+	"github.com/shiva/gonix/internal/accesslist"
 )
 
 type accessListsScreen struct {
@@ -65,7 +65,7 @@ func (s *accessListsScreen) View(width, height int) string {
 		body += s.menu.View()
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }
 
 func newCreateAccessListWizard(deps Deps) *wizardScreen {
@@ -206,7 +206,7 @@ func (s *accessListDetailScreen) View(width, height int) string {
 	}
 	body += "\n\n" + s.menu.View()
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }
 
 func newAddUserWizard(deps Deps, listName string) *wizardScreen {

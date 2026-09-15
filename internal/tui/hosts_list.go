@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/nginx"
+	"github.com/shiva/gonix/internal/nginx"
 )
 
 // hostsListScreen implements "Manage Hosts": a searchable list of every
@@ -94,5 +94,5 @@ func (s *hostsListScreen) View(width, height int) string {
 		body += s.menu.View()
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Manage"}, {"r", "Refresh"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

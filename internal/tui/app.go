@@ -5,16 +5,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/accesslist"
-	"github.com/shiva/nginx-manager/internal/audit"
-	"github.com/shiva/nginx-manager/internal/backup"
-	"github.com/shiva/nginx-manager/internal/config"
-	"github.com/shiva/nginx-manager/internal/hosts"
-	"github.com/shiva/nginx-manager/internal/nginx"
-	"github.com/shiva/nginx-manager/internal/system"
+	"github.com/shiva/gonix/internal/accesslist"
+	"github.com/shiva/gonix/internal/audit"
+	"github.com/shiva/gonix/internal/backup"
+	"github.com/shiva/gonix/internal/config"
+	"github.com/shiva/gonix/internal/hosts"
+	"github.com/shiva/gonix/internal/nginx"
+	"github.com/shiva/gonix/internal/system"
 )
 
-// Version is the nginx-manager release version, shown in the title bar. It
+// Version is the GoNix release version, shown in the title bar. It
 // is overridable at build time via -ldflags "-X ...Version=...".
 var Version = "0.1.0"
 
@@ -119,7 +119,7 @@ func sizeCmd(w, h int) tea.Cmd {
 
 func (m *rootModel) View() string {
 	if m.width == 0 {
-		return "Loading nginx-manager..."
+		return "Loading GoNix..."
 	}
 	return m.top().View(m.width, m.height)
 }

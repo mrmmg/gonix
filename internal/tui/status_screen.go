@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/nginx-manager/internal/nginx"
-	"github.com/shiva/nginx-manager/internal/system"
+	"github.com/shiva/gonix/internal/nginx"
+	"github.com/shiva/gonix/internal/system"
 )
 
 // statusScreen implements "Nginx Status": service control, process
@@ -169,5 +169,5 @@ func (s *statusScreen) View(width, height int) string {
 	}
 
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Run"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", b.String(), help)
+	return renderFrame(width, height, "GONIX", b.String(), help)
 }

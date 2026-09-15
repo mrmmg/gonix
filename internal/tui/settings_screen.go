@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// settingsScreen shows the effective nginx-manager configuration. Editing is
+// settingsScreen shows the effective GoNix configuration. Editing is
 // intentionally done by hand in the YAML file (see internal/config) rather
 // than through the TUI, since these are low-frequency, high-impact settings
 // best reviewed in a text editor / version control.
@@ -31,7 +31,7 @@ func (s *settingsScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 func (s *settingsScreen) View(width, height int) string {
 	c := s.deps.Config
 	body := headerStyle.Render("Settings") + "\n\n"
-	body += mutedStyle.Render("Edit /etc/nginx-manager/nginx-manager.yaml and restart to change these.") + "\n\n"
+	body += mutedStyle.Render("Edit /etc/gonix/gonix.yaml and restart to change these.") + "\n\n"
 	body += fmt.Sprintf("Nginx config dir:       %s\n", c.Nginx.ConfigDir)
 	body += fmt.Sprintf("sites-available:        %s\n", c.Nginx.SitesAvailable)
 	body += fmt.Sprintf("sites-enabled:          %s\n", c.Nginx.SitesEnabled)
@@ -42,5 +42,5 @@ func (s *settingsScreen) View(width, height int) string {
 	body += fmt.Sprintf("Backup directory:       %s (keep %d)\n", c.Backup.Directory, c.Backup.KeepCount)
 	body += fmt.Sprintf("Access lists directory: %s\n", c.AccessLists.Directory)
 	help := [][2]string{{"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }

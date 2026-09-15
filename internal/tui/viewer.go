@@ -51,5 +51,5 @@ func (s *viewerScreen) View(width, height int) string {
 	body := headerStyle.Render(s.title) + "\n\n"
 	body += strings.Join(s.lines[s.offset:end], "\n")
 	help := [][2]string{{"↑↓", "Scroll"}, {"Esc", "Back"}}
-	return renderFrame(width, height, "NGINX MANAGER", body, help)
+	return renderFrame(width, height, "GONIX", body, help)
 }
