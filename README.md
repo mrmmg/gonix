@@ -1,5 +1,7 @@
 # GoNix
 
+*[فارسی](README-fa.md)*
+
 **GoNix** — the name comes from **Go** + **Nginx** — is an advanced, interactive **terminal UI
 (TUI) for managing Nginx** on Linux, written in Go.
 
