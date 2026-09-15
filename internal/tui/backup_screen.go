@@ -52,7 +52,12 @@ func (s *backupScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 		switch km.String() {
 		case "esc", "q":
-			return s, navPop()
+			// The host detail screen isn't kept on the navigation stack
+			// while this screen is showing (it was replaced in place, not
+			// pushed), so return to a fresh copy of it directly instead of
+			// navPop()'ing — which would otherwise skip past it back to the
+			// hosts list.
+			return newHostDetailScreen(s.deps, s.host), nil
 		case "enter":
 			if len(s.snaps) == 0 {
 				return s, nil

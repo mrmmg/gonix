@@ -46,8 +46,10 @@ type navPushMsg struct{ screen screen }
 // navPopMsg asks the root model to pop the current screen off the stack.
 type navPopMsg struct{}
 
-// navReplaceMsg asks the root model to replace the whole stack with a single
-// screen (used when returning to the main menu after a deep workflow).
+// navReplaceMsg asks the root model to replace only the current top-of-stack
+// screen with a new one, leaving every screen below it untouched (used when
+// a multi-step workflow, e.g. a wizard followed by its result screen,
+// finishes and hands off to whatever should be shown next).
 type navReplaceMsg struct{ screen screen }
 
 func navPush(s screen) tea.Cmd    { return func() tea.Msg { return navPushMsg{s} } }
@@ -104,7 +106,10 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, sizeCmd(m.width, m.height)
 
 	case navReplaceMsg:
-		m.stack = []screen{msg.screen}
+		if len(m.stack) > 0 {
+			m.stack = m.stack[:len(m.stack)-1]
+		}
+		m.stack = append(m.stack, msg.screen)
 		return m, tea.Batch(msg.screen.Init(), sizeCmd(m.width, m.height))
 	}
 
