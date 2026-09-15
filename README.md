@@ -6,7 +6,7 @@
 (TUI) for managing Nginx** on Linux, written in Go.
 
 <p align="center">
-  <video src="./art/gonix_preview.mp4" controls"></video>
+  <video src="./art/gonix_preview.mp4" controls alt="GoNix Preview"></video>
 </p>
 
 It is inspired by [Nginx Proxy Manager](https://nginxproxymanager.com/), but takes a different

@@ -6,7 +6,7 @@
 پیشرفته و تعاملی برای **مدیریت Nginx** روی لینوکس است که با زبان Go نوشته شده است.
 
 <p align="center">
-  <video src="./art/gonix_preview.mp4" controls"></video>
+  <video src="./art/gonix_preview.mp4" controls alt="GoNix Preview"></video>
 </p>
 
 این پروژه از [Nginx Proxy Manager](https://nginxproxymanager.com/) الهام گرفته، اما رویکرد
