@@ -5,9 +5,7 @@
 **GoNix** — the name comes from **Go** + **Nginx** — is an advanced, interactive **terminal UI
 (TUI) for managing Nginx** on Linux, written in Go.
 
-<p align="center">
-  <video src="./art/gonix_preview.mp4" controls alt="GoNix Preview"></video>
-</p>
+https://github.com/mrmmg/gonix/raw/refs/heads/main/art/gonix_preview.mp4
 
 It is inspired by [Nginx Proxy Manager](https://nginxproxymanager.com/), but takes a different
 approach: instead of hiding Nginx behind a database and a proprietary configuration format,
