@@ -1,6 +1,9 @@
 BINARY      := gonix
 CMD_PATH    := ./cmd/gonix
-VERSION     := $(shell cat VERSION 2>/dev/null || echo dev)
+# Local/dev builds are versioned by the current git commit; official
+# releases are versioned by the git tag instead (see
+# .github/workflows/release.yml), not by anything in this Makefile.
+VERSION     := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 LDFLAGS     := -s -w -X github.com/mrmmg/gonix/internal/tui.Version=$(VERSION)
 
 # Layout matches install.sh (the prebuilt-release installer), so a
