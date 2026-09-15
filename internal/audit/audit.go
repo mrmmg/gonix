@@ -42,7 +42,7 @@ func (e Entry) String() string {
 
 // Logger appends entries to a log file on disk. It is intentionally simple;
 // rotation is handled by the standard Linux logrotate utility (see
-// scripts/install.sh and configs/logrotate).
+// configs/logrotate.conf, installed by install.sh / `make install`).
 type Logger struct {
 	path string
 }

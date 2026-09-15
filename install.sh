@@ -9,8 +9,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash -s -- v1.2.3
 #
 # Downloads a prebuilt release binary from GitHub Releases — no Go
-# toolchain or repository checkout required. For building from source
-# instead, see scripts/install.sh in the repository.
+# toolchain or repository checkout required. To build and install from
+# source instead, run `make install` in a clone of the repository (see
+# README.md).
 set -euo pipefail
 
 # Paths are overridable via environment variables, mainly so this script can

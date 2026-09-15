@@ -1,6 +1,6 @@
 # gonix configuration.
 #
-# This file is installed to /etc/gonix/gonix.yaml by scripts/install.sh (build
+# This file is installed to /etc/gonix/gonix.yaml by `make install` (build
 # from source) and by install.sh / GitHub Releases (prebuilt install), and is
 # never overwritten once present. All paths used by gonix are centralized
 # here; nothing is hard-coded in the application itself.

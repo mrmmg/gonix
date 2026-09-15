@@ -65,7 +65,7 @@ downloading something that won't run.
 ### Building and installing from source instead
 
 If you'd rather build locally (no GitHub release download), see
-[Building from Source](#building-from-source) below — `scripts/install.sh` builds the binary with
+[Building from Source](#building-from-source) below — `make install` builds the binary with
 `go build` and installs it into the same `/opt/gonix` layout described above.
 
 ### How releases are built
@@ -117,25 +117,24 @@ a release is created or edited by hand.
 
 ## Building from Source
 
-### Install from source with `scripts/install.sh`
+### Install from source with `make install`
 
 ```bash
 git clone https://github.com/mrmmg/gonix.git
 cd gonix
-sudo ./scripts/install.sh
+make install
 ```
 
 This is the source-build equivalent of the one-command installer above, useful when you don't
 want to fetch a prebuilt binary from GitHub Releases. It will:
 
-1. Detect your OS and check for `systemctl`, `nginx`, and `logrotate`.
-2. Build the binary from source (via `go build`) if a prebuilt one isn't already present.
-3. Install it to `/opt/gonix/bin/gonix` and symlink `/usr/local/bin/gonix` to it.
-4. Install the default configuration to `/etc/gonix/gonix.yaml` (without
+1. Build the binary from source (via `go build -trimpath -ldflags="-s -w"`).
+2. Install it to `/opt/gonix/bin/gonix` and symlink `/usr/local/bin/gonix` to it.
+3. Install the default configuration to `/etc/gonix/gonix.yaml` (without
    overwriting an existing one).
-5. Create `/etc/gonix/{backups,accesslists}` and `/var/log/gonix`.
-6. Install a logrotate policy at `/etc/logrotate.d/gonix` covering both per-host Nginx
-   logs and the audit log.
+4. Create `/etc/gonix/{backups,accesslists}` and `/var/log/gonix`.
+5. Install a logrotate policy at `/etc/logrotate.d/gonix` covering both per-host Nginx
+   logs and the audit log (skipped with a message if `logrotate` isn't installed).
 
 Afterwards:
 
@@ -215,7 +214,7 @@ make cross     # cross-compile linux/amd64 and linux/arm64
 make test      # go test ./...
 make vet       # go vet ./...
 make lint      # vet + fmt check
-make install   # release build + sudo ./scripts/install.sh
+make install   # release build + install to /opt/gonix (prompts for sudo as needed)
 make clean     # remove built binaries
 ```
 
@@ -259,9 +258,11 @@ gonix/
 │   ├── logs/              log path helpers + logrotate config generation
 │   └── config/            centralized, YAML-driven configuration (no hard-coded paths)
 ├── templates/             embedded Nginx config templates (host.tmpl, location.tmpl)
-├── configs/default.yaml   default GoNix configuration, also shipped as a release asset
-├── scripts/install.sh     build-from-source installer (used by `make install`)
+├── configs/
+│   ├── default.yaml       default GoNix configuration, also shipped as a release asset
+│   └── logrotate.conf     logrotate policy installed by `make install` and install.sh
 ├── install.sh             one-command installer: downloads a release, no Go toolchain needed
+├── Makefile               `make install` builds from source and installs the same layout
 ├── .github/workflows/
 │   └── release.yml        builds + publishes a GitHub Release on every vX.Y.Z tag push
 └── tests/                 (package-local *_test.go files hold the actual test suite)
