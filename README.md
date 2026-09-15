@@ -90,6 +90,29 @@ go build -o gonix ./cmd/gonix
 sudo ./gonix
 ```
 
+### Running with `go run` (development)
+
+While developing, you can skip the explicit build step and run straight from source with
+`go run`. Since `main.go` requires root to touch `/etc/nginx` and `systemctl`, invoke it via
+`sudo` (using `sudo -E` if you also want to pass through a custom `GONIX_CONFIG`):
+
+```bash
+sudo go run ./cmd/gonix
+```
+
+Because the module cache and build cache normally live under your own user, the first `sudo go
+run` in a fresh checkout may need to build as root once; if you'd rather not run `go` itself as
+root, point `sudo` at a prebuilt dev binary instead (`go build -o gonix ./cmd/gonix && sudo
+./gonix`).
+
+To point it at a throwaway configuration instead of the real `/etc/nginx` (handy for trying out
+the UI without touching your actual Nginx setup), copy `configs/default.yaml`, edit its paths to
+some local scratch directories, and run:
+
+```bash
+sudo GONIX_CONFIG=/path/to/dev-gonix.yaml go run ./cmd/gonix
+```
+
 ### Production build
 
 ```bash
@@ -132,7 +155,16 @@ go fmt ./...
 ```
 
 Tests use temporary directories and fake implementations of external commands (`nginx -t`,
-`systemctl`), so the full suite runs without a real Nginx installation or root privileges.
+`systemctl`), so the full suite runs without a real Nginx installation or root privileges — no
+`sudo` needed for any of the commands above.
+
+Useful variations while iterating on a single package:
+
+```bash
+go test ./internal/nginx/...           # just one package
+go test ./... -run TestRenderHost -v   # a single test, verbose
+go test ./... -cover                   # with coverage summary
+```
 
 ## Project Structure
 
