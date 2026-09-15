@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // hostsListScreen implements "Manage Hosts": a searchable list of every

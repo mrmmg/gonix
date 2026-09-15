@@ -3,7 +3,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // newHostAccessListScreen lets the operator apply or remove a host-level

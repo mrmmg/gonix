@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/shiva/gonix/internal/audit"
-	"github.com/shiva/gonix/internal/backup"
-	"github.com/shiva/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/audit"
+	"github.com/mrmmg/gonix/internal/backup"
+	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // ConfigTester is satisfied by *nginx.Validator; it is an interface here so

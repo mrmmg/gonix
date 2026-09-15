@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/accesslist"
+	"github.com/mrmmg/gonix/internal/accesslist"
 )
 
 type accessListsScreen struct {

@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/certificates"
-	"github.com/shiva/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/certificates"
+	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // hostDetailScreen implements the per-host management submenu described in

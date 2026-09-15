@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 #
-# gonix installer.
+# gonix installer (build from source).
 #
-# Builds (if needed) and installs the gonix binary, its
-# configuration file and a logrotate policy for its audit log. Run as root:
+# Builds (if needed) and installs gonix to /opt/gonix (symlinked from
+# /usr/local/bin), its configuration file, and a logrotate policy for its
+# audit log. Run as root:
 #
 #   sudo ./scripts/install.sh
+#
+# This script is for building and installing from a local checkout. To
+# install a prebuilt release without cloning the repository or needing a Go
+# toolchain, use the top-level install.sh instead (see README.md):
+#
+#   curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash
 #
 set -euo pipefail
 
 BIN_NAME="gonix"
-INSTALL_PREFIX="${INSTALL_PREFIX:-/usr/local/bin}"
+INSTALL_DIR="/opt/gonix"
+BIN_DIR="${INSTALL_DIR}/bin"
+GLOBAL_BIN_DIR="${INSTALL_PREFIX:-/usr/local/bin}"
 CONFIG_DIR="/etc/gonix"
 CONFIG_FILE="${CONFIG_DIR}/gonix.yaml"
 LOGROTATE_FILE="/etc/logrotate.d/gonix"
@@ -63,12 +72,22 @@ build_binary() {
     fi
     command -v go >/dev/null 2>&1 || die "Go toolchain not found; install Go or place a prebuilt '${BIN_NAME}' binary in the repository root"
     log "building ${BIN_NAME} from source"
-    (cd "$REPO_ROOT" && go build -trimpath -ldflags="-s -w" -o "$BIN_NAME" ./cmd/gonix)
+    local version
+    version="$(cat "${REPO_ROOT}/VERSION" 2>/dev/null || echo dev)"
+    (cd "$REPO_ROOT" && go build -trimpath \
+        -ldflags="-s -w -X github.com/mrmmg/gonix/internal/tui.Version=${version}" \
+        -o "$BIN_NAME" ./cmd/gonix)
 }
 
 install_binary() {
-    log "installing binary to ${INSTALL_PREFIX}/${BIN_NAME}"
-    install -Dm755 "${REPO_ROOT}/${BIN_NAME}" "${INSTALL_PREFIX}/${BIN_NAME}"
+    log "installing binary to ${BIN_DIR}/${BIN_NAME}"
+    mkdir -p "$BIN_DIR"
+    install -Dm755 "${REPO_ROOT}/${BIN_NAME}" "${BIN_DIR}/${BIN_NAME}"
+    cat "${REPO_ROOT}/VERSION" 2>/dev/null > "${INSTALL_DIR}/VERSION" || true
+
+    log "linking global command: ${GLOBAL_BIN_DIR}/${BIN_NAME}"
+    mkdir -p "$GLOBAL_BIN_DIR"
+    ln -sf "${BIN_DIR}/${BIN_NAME}" "${GLOBAL_BIN_DIR}/${BIN_NAME}"
 }
 
 install_config() {

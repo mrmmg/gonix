@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/backup"
-	"github.com/shiva/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/backup"
+	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // backupScreen lists stored configuration snapshots for a host and lets the

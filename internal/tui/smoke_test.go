@@ -5,13 +5,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/accesslist"
-	"github.com/shiva/gonix/internal/audit"
-	"github.com/shiva/gonix/internal/backup"
-	"github.com/shiva/gonix/internal/config"
-	"github.com/shiva/gonix/internal/hosts"
-	"github.com/shiva/gonix/internal/nginx"
-	"github.com/shiva/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/accesslist"
+	"github.com/mrmmg/gonix/internal/audit"
+	"github.com/mrmmg/gonix/internal/backup"
+	"github.com/mrmmg/gonix/internal/config"
+	"github.com/mrmmg/gonix/internal/hosts"
+	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/system"
 )
 
 // testDeps builds a fully wired Deps against temporary directories, so the

@@ -1,7 +1,7 @@
 BINARY      := gonix
 CMD_PATH    := ./cmd/gonix
 VERSION     := $(shell cat VERSION 2>/dev/null || echo dev)
-LDFLAGS     := -s -w -X github.com/shiva/gonix/internal/tui.Version=$(VERSION)
+LDFLAGS     := -s -w -X github.com/mrmmg/gonix/internal/tui.Version=$(VERSION)
 
 .PHONY: build
 build:

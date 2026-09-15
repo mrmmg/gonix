@@ -1,0 +1,97 @@
+name: Release
+
+# Builds GoNix and publishes a GitHub Release whenever a version tag
+# (v1.0.0, v1.2.3, ...) is pushed. The tag is the single source of truth
+# for the release version; nothing here is hand-triggered or manual.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (linux/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Determine release version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build gonix-linux-${{ matrix.goarch }}
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          go build -trimpath \
+            -ldflags="-s -w -X github.com/mrmmg/gonix/internal/tui.Version=${{ steps.version.outputs.version }}" \
+            -o "dist/gonix-linux-${{ matrix.goarch }}" \
+            ./cmd/gonix
+
+      - name: Checksum
+        working-directory: dist
+        run: sha256sum "gonix-linux-${{ matrix.goarch }}" > "gonix-linux-${{ matrix.goarch }}.sha256"
+
+      - name: Smoke-test binary
+        if: matrix.goarch == 'amd64'
+        run: dist/gonix-linux-amd64 --version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gonix-linux-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Assemble release assets
+        working-directory: dist
+        run: |
+          cat ./*.sha256 > checksums.txt
+          cp "$GITHUB_WORKSPACE/configs/default.yaml" gonix.yaml
+          ls -la
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2.0.8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: GoNix ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/gonix-linux-amd64
+            dist/gonix-linux-arm64
+            dist/checksums.txt
+            dist/gonix.yaml

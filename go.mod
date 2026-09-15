@@ -1,4 +1,4 @@
-module github.com/shiva/gonix
+module github.com/mrmmg/gonix
 
 go 1.26.6
 

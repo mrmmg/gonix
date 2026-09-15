@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/certificates"
+	"github.com/mrmmg/gonix/internal/certificates"
 )
 
 type certificatesScreen struct {

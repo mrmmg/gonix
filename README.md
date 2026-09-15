@@ -11,6 +11,71 @@ editor and see plain, standard Nginx syntax — nothing opaque, nothing propriet
 
 The compiled binary is named `gonix`.
 
+## Installation
+
+Install the latest version of GoNix with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash
+```
+
+That's it. The installer automatically detects your architecture, downloads the latest release,
+installs GoNix, and sets up the default configuration. Once it finishes, run:
+
+```bash
+sudo gonix
+```
+
+To install a specific version instead of the latest:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash -s -- v1.2.3
+```
+
+Running the installer again — with or without a version argument — upgrades an existing
+installation: it replaces the `gonix` binary with the requested version and reports what was
+previously installed, but never touches your existing configuration in `/etc/gonix`.
+
+If you don't already have `sudo` privileges cached, the installer will prompt for your password
+when it needs to write to `/opt`, `/etc`, or `/usr/local/bin`.
+
+### Supported architectures
+
+| OS    | Architecture | Release asset          |
+|-------|--------------|-------------------------|
+| Linux | amd64        | `gonix-linux-amd64`    |
+| Linux | arm64        | `gonix-linux-arm64`    |
+
+Any other OS/architecture combination is rejected by the installer with a clear error rather than
+downloading something that won't run.
+
+### What gets installed, and where
+
+| Path                          | Purpose                                                        |
+|--------------------------------|----------------------------------------------------------------|
+| `/opt/gonix/bin/gonix`         | The installed binary                                           |
+| `/opt/gonix/VERSION`           | The currently installed version                                |
+| `/usr/local/bin/gonix`         | Symlink to the binary above, so `gonix` works from any `$PATH` |
+| `/etc/gonix/gonix.yaml`        | Configuration file (created once, never overwritten)           |
+| `/etc/gonix/backups/`          | Automatic configuration backups                                |
+| `/etc/gonix/accesslists/`      | HTTP Basic Auth access list files                               |
+| `/var/log/gonix/audit.log`     | Audit log                                                       |
+| `/etc/logrotate.d/gonix`       | Log rotation policy (if `logrotate` is installed)               |
+
+### Building and installing from source instead
+
+If you'd rather build locally (no GitHub release download), see
+[Building from Source](#building-from-source) below — `scripts/install.sh` builds the binary with
+`go build` and installs it into the same `/opt/gonix` layout described above.
+
+### How releases are built
+
+Pushing a version tag (`vX.Y.Z`, e.g. `v1.2.3`) to this repository triggers the
+[`Release` GitHub Actions workflow](.github/workflows/release.yml), which builds `linux/amd64` and
+`linux/arm64` binaries, and — only if both builds succeed — publishes a GitHub Release for that
+exact tag containing the binaries, a `checksums.txt`, and the default configuration. Nothing about
+a release is created or edited by hand.
+
 ## Features
 
 - **Host management** — create, list, enable/disable, and delete virtual hosts, named after their
@@ -50,19 +115,22 @@ The compiled binary is named `gonix`.
 - `systemctl` (systemd)
 - Optional: `logrotate` (log rotation is skipped with a warning if absent)
 
-## Installation
+## Building from Source
+
+### Install from source with `scripts/install.sh`
 
 ```bash
-git clone <this-repository-url> gonix
+git clone https://github.com/mrmmg/gonix.git
 cd gonix
 sudo ./scripts/install.sh
 ```
 
-The installer will:
+This is the source-build equivalent of the one-command installer above, useful when you don't
+want to fetch a prebuilt binary from GitHub Releases. It will:
 
 1. Detect your OS and check for `systemctl`, `nginx`, and `logrotate`.
 2. Build the binary from source (via `go build`) if a prebuilt one isn't already present.
-3. Install it to `/usr/local/bin/gonix`.
+3. Install it to `/opt/gonix/bin/gonix` and symlink `/usr/local/bin/gonix` to it.
 4. Install the default configuration to `/etc/gonix/gonix.yaml` (without
    overwriting an existing one).
 5. Create `/etc/gonix/{backups,accesslists}` and `/var/log/gonix`.
@@ -75,10 +143,10 @@ Afterwards:
 sudo gonix
 ```
 
-## Building from Source
+### Development build
 
 ```bash
-git clone <this-repository-url> gonix
+git clone https://github.com/mrmmg/gonix.git
 cd gonix
 
 go mod download
@@ -130,6 +198,11 @@ go build -trimpath -ldflags="-s -w" -o gonix ./cmd/gonix
 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o gonix-linux-amd64 ./cmd/gonix
 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o gonix-linux-arm64 ./cmd/gonix
 ```
+
+This is exactly what [`.github/workflows/release.yml`](.github/workflows/release.yml) runs for
+each architecture (additionally passing `-X .../internal/tui.Version=<tag>` so `gonix --version`
+reports the released version), which is why the asset names match: `gonix-linux-amd64` and
+`gonix-linux-arm64`.
 
 ### Makefile
 
@@ -186,8 +259,11 @@ gonix/
 │   ├── logs/              log path helpers + logrotate config generation
 │   └── config/            centralized, YAML-driven configuration (no hard-coded paths)
 ├── templates/             embedded Nginx config templates (host.tmpl, location.tmpl)
-├── configs/default.yaml   default GoNix configuration, installed by scripts/install.sh
-├── scripts/install.sh     installer
+├── configs/default.yaml   default GoNix configuration, also shipped as a release asset
+├── scripts/install.sh     build-from-source installer (used by `make install`)
+├── install.sh             one-command installer: downloads a release, no Go toolchain needed
+├── .github/workflows/
+│   └── release.yml        builds + publishes a GitHub Release on every vX.Y.Z tag push
 └── tests/                 (package-local *_test.go files hold the actual test suite)
 ```
 
@@ -263,8 +339,8 @@ auth_basic_user_file /etc/gonix/accesslists/<name>.htpasswd;
   `<domain>.error.log`, toggled independently from each host's management screen.
 - **Audit log**: `/var/log/gonix/audit.log`, one line per action:
   `2026-09-15 10:32:11 | user=root | action=host_created | target=example.com | result=success`
-- **Rotation**: both are rotated by standard `logrotate`, configured automatically by
-  `scripts/install.sh` at `/etc/logrotate.d/gonix`.
+- **Rotation**: both are rotated by standard `logrotate`, configured automatically by either
+  installer at `/etc/logrotate.d/gonix`.
 
 ## Backups
 

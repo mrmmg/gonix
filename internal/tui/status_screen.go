@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/nginx"
-	"github.com/shiva/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/system"
 )
 
 // statusScreen implements "Nginx Status": service control, process

@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // createTestHost writes a minimal managed host into deps' sites-available

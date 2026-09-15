@@ -9,21 +9,44 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/shiva/gonix/internal/accesslist"
-	"github.com/shiva/gonix/internal/audit"
-	"github.com/shiva/gonix/internal/backup"
-	"github.com/shiva/gonix/internal/config"
-	"github.com/shiva/gonix/internal/hosts"
-	"github.com/shiva/gonix/internal/nginx"
-	"github.com/shiva/gonix/internal/system"
-	"github.com/shiva/gonix/internal/tui"
+	"github.com/mrmmg/gonix/internal/accesslist"
+	"github.com/mrmmg/gonix/internal/audit"
+	"github.com/mrmmg/gonix/internal/backup"
+	"github.com/mrmmg/gonix/internal/config"
+	"github.com/mrmmg/gonix/internal/hosts"
+	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/tui"
 )
 
 func main() {
+	switch {
+	case len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v"):
+		fmt.Println("gonix version " + tui.Version)
+		return
+	case len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h"):
+		printUsage()
+		return
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "gonix:", err)
 		os.Exit(1)
 	}
+}
+
+func printUsage() {
+	fmt.Print(`gonix - an interactive terminal UI for managing Nginx
+
+Usage:
+  sudo gonix              Launch the TUI
+  gonix --version, -v     Print the installed version
+  gonix --help, -h        Show this help message
+
+Environment:
+  GONIX_CONFIG   Path to an alternate configuration file
+                 (default: ` + config.DefaultPath + `)
+`)
 }
 
 func run() error {
