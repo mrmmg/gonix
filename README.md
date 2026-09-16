@@ -2,12 +2,41 @@
 
 *[فارسی](README-fa.md)*
 
+Video Preview:
+<p align="center">
+
+https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
+
+</p>
+
 **GoNix** — the name comes from **Go** + **Nginx** — is an advanced, interactive **terminal UI
 (TUI) for managing Nginx** on Linux, written in Go.
 
-Preview:
+## Table of Contents
 
-https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
+- [Installation](#installation)
+  - [Supported architectures](#supported-architectures)
+  - [What gets installed, and where](#what-gets-installed-and-where)
+  - [Building and installing from source instead](#building-and-installing-from-source-instead)
+  - [How releases are built](#how-releases-are-built)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Building from Source](#building-from-source)
+  - [Install from source with `make install`](#install-from-source-with-make-install)
+  - [Development build](#development-build)
+  - [Running with `go run` (development)](#running-with-go-run-development)
+  - [Production build](#production-build)
+  - [Cross-compilation](#cross-compilation)
+  - [Makefile](#makefile)
+- [Development Commands](#development-commands)
+- [Project Structure](#project-structure)
+- [Nginx Configuration](#nginx-configuration)
+- [SSL Certificates](#ssl-certificates)
+- [Access Lists](#access-lists)
+- [Logs](#logs)
+- [Backups](#backups)
+- [Development](#development)
+- [Future Features](#future-features)
 
 It is inspired by [Nginx Proxy Manager](https://nginxproxymanager.com/), but takes a different
 approach: instead of hiding Nginx behind a database and a proprietary configuration format,
