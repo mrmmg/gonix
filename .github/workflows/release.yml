@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Exclude art/ from build context
+        run: rm -rf art
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -68,6 +71,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Exclude art/ from build context
+        run: rm -rf art
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
