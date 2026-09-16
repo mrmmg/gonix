@@ -1,3 +1,5 @@
+<img src="art/logo-full.jpeg" alt="GoNix Logo" width="50%" />
+
 # GoNix
 
 *[فارسی](README-fa.md)*

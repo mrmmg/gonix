@@ -1,4 +1,6 @@
-# GoNix
+<img src="art/logo-full.jpeg" alt="GoNix Logo" width="50%" />
+
+# GoNix - گونیکس
 
 *[English](README.md)*
 
