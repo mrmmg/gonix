@@ -29,11 +29,13 @@ func (s *certificatesScreen) reload() {
 		return
 	}
 	s.certs = certs
-	items := make([]menuItem, 0, len(certs))
+	items := []menuItem{
+		{title: "+ Get Wildcard Certificate (Certbot)", desc: "Automates certbot + Cloudflare DNS-01"},
+	}
 	for _, c := range certs {
 		items = append(items, menuItem{title: statusBadge(c.Status) + " " + c.Domain, desc: string(c.KeyType) + "  " + c.RemainingHuman()})
 	}
-	if len(items) == 0 {
+	if len(certs) == 0 {
 		items = append(items, menuItem{title: "(no certificates found in " + s.deps.Config.Certificates.Directory + ")"})
 	}
 	s.menu = newSimpleMenu(items)
@@ -65,11 +67,16 @@ func (s *certificatesScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "r":
 			s.reload()
 		case "enter":
-			if len(s.certs) == 0 {
+			idx := s.menu.Selected()
+			if idx == 0 {
+				return newWildcardCertWizard(s.deps), nil
+			}
+			certIdx := idx - 1
+			if certIdx < 0 || certIdx >= len(s.certs) {
 				return s, nil
 			}
-			c := s.certs[s.menu.Selected()]
-			return newViewerScreen("Certificate: "+c.Domain, renderCertDetail(c), s), nil
+			c := s.certs[certIdx]
+			return newCertActionScreen(s.deps, c), nil
 		}
 	}
 	return s, nil

@@ -26,6 +26,7 @@ type wizardField struct {
 	Kind        fieldKind
 	Placeholder string
 	Default     string   // for fieldText
+	Sensitive   bool     // for fieldText: mask input, e.g. API tokens
 	BoolDefault bool     // for fieldBool
 	Options     []string // for fieldChoice
 	Validate    func(value string) error
@@ -82,6 +83,10 @@ func (w *wizardScreen) enterStep(i int) {
 		ti.CursorEnd()
 		ti.Focus()
 		ti.Width = 50
+		if f.Sensitive {
+			ti.EchoMode = textinput.EchoPassword
+			ti.EchoCharacter = '•'
+		}
 		w.input = ti
 	case fieldBool:
 		w.boolCursor = 0
@@ -132,7 +137,7 @@ func (w *wizardScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 				w.values[f.Key] = val
 				w.enterStep(w.idx + 1)
 				if _, more := w.currentField(); !more {
-					return w.onDone(w.values)
+					return w.finish()
 				}
 				return w, textinput.Blink
 			default:
@@ -157,7 +162,7 @@ func (w *wizardScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 				w.values[f.Key] = val
 				w.enterStep(w.idx + 1)
 				if _, more := w.currentField(); !more {
-					return w.onDone(w.values)
+					return w.finish()
 				}
 				return w, textinput.Blink
 			}
@@ -176,13 +181,24 @@ func (w *wizardScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 				w.values[f.Key] = f.Options[w.choiceIdx]
 				w.enterStep(w.idx + 1)
 				if _, more := w.currentField(); !more {
-					return w.onDone(w.values)
+					return w.finish()
 				}
 				return w, textinput.Blink
 			}
 		}
 	}
 	return w, nil
+}
+
+// finish hands off to onDone once every field has been answered. It routes
+// the resulting screen through navReplace rather than swapping it in
+// directly, because only the navReplaceMsg path calls the new screen's
+// Init() — which matters for anything beyond static screens, e.g.
+// liveRunScreen relies on Init() to start listening for its background
+// run's progress messages at all.
+func (w *wizardScreen) finish() (screen, tea.Cmd) {
+	next, cmd := w.onDone(w.values)
+	return w, tea.Batch(cmd, navReplace(next))
 }
 
 func (w *wizardScreen) View(width, height int) string {

@@ -32,6 +32,8 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
 - [Project Structure](#project-structure)
 - [Nginx Configuration](#nginx-configuration)
 - [SSL Certificates](#ssl-certificates)
+  - [Get Wildcard Certificate (Certbot)](#get-wildcard-certificate-certbot)
+    - [Renewing a certificate](#renewing-a-certificate)
 - [Access Lists](#access-lists)
 - [Logs](#logs)
 - [Backups](#backups)
@@ -149,6 +151,8 @@ a release is created or edited by hand.
 - Nginx
 - `systemctl` (systemd)
 - Optional: `logrotate` (log rotation is skipped with a warning if absent)
+- Optional: `certbot`, only needed for the [Get Wildcard Certificate (Certbot)](#get-wildcard-certificate-certbot)
+  feature (with a domain managed by Cloudflare)
 
 ## Building from Source
 
@@ -286,6 +290,8 @@ gonix/
 │   ├── hosts/             the safe, high-level workflow: validate → backup → write → test →
 │   │                      reload-or-rollback → audit
 │   ├── certificates/      TLS certificate discovery and inspection (crypto/x509)
+│   ├── acme/              automated wildcard certificates: certbot + Cloudflare API DNS-01
+│   │                      (see "Get Wildcard Certificate (Certbot)" under SSL Certificates)
 │   ├── accesslist/        HTTP Basic Auth "access lists" backed by htpasswd (bcrypt) files
 │   ├── audit/             append-only audit log
 │   ├── backup/            configuration snapshot/restore
@@ -346,12 +352,76 @@ ssl_certificate_key /etc/nginx/certs/example.com/privkey.pem;
 ```
 
 GoNix does **not** copy certificates into per-host directories, so renewing a certificate
-(e.g. via `certbot` with a DNS challenge, which is assumed to be run manually/externally) is just
-replacing the two files in place — no reconfiguration needed.
+(e.g. via `certbot` with a DNS challenge, run manually/externally, or via the automated flow
+below) is just replacing the two files in place — no reconfiguration needed.
 
-> **TODO (future work):** automatic Let's Encrypt/Certbot integration (including DNS challenge
-> providers) is intentionally not implemented yet. See `internal/certificates` for where this
-> would hook in.
+### Get Wildcard Certificate (Certbot)
+
+From the **Certificates** screen, the first entry — **"Get Wildcard Certificate (Certbot)"** —
+automates issuing a wildcard certificate (`*.domain.com` + `domain.com`) end to end using
+`certbot`'s DNS-01 challenge and the **Cloudflare API**. This is currently the only supported DNS
+provider.
+
+Normally, `certbot certonly --manual --preferred-challenges dns` requires a human in the loop: it
+prints a TXT record to create, waits for you to set it in your DNS panel, and asks you to press
+Enter once you've confirmed it propagated (e.g. with `dig`). GoNix replaces that interactive step
+with certbot's own `--manual-auth-hook`/`--manual-cleanup-hook` mechanism — certbot runs a hook
+command itself and waits for it to finish, so no terminal interaction is needed. The hook is this
+same `gonix` binary invoked as `gonix acme-hook auth|cleanup` (a hidden subcommand; see
+`internal/acme`), which:
+
+1. Creates the `_acme-challenge.domain.com` TXT record via the Cloudflare API.
+2. Polls public DNS directly (bypassing local caches) until the record is visible, replacing the
+   manual `dig`-and-press-Enter step.
+3. Lets certbot validate the challenge and issue the certificate.
+4. Removes the TXT record afterwards via the Cloudflare API (the cleanup hook).
+
+The wizard asks for three things:
+
+| Field                | Notes                                                                 |
+|-----------------------|------------------------------------------------------------------------|
+| Base domain           | Without the leading `*.`, e.g. `example.com`                          |
+| Cloudflare API Token  | Needs `Zone:DNS:Edit` permission for the domain's zone; input is masked |
+| Contact email         | Optional; used for Let's Encrypt renewal notices                      |
+
+Before running `certbot` at all, GoNix verifies the Cloudflare token and confirms the domain's
+zone exists in that Cloudflare account, so a bad token or a domain that isn't on Cloudflare fails
+immediately with a clear message instead of after certbot has already started.
+
+On success, GoNix copies the issued `fullchain.pem`/`privkey.pem` from certbot's
+`/etc/letsencrypt/live/<domain>/` into the centralized certificates directory
+(`<certificates.directory>/<domain>/`, see [SSL Certificates](#ssl-certificates) above), chmod'd
+`0644` so Nginx can always read them, exactly like a manually placed certificate. This works
+whether certbot just issued a brand new certificate, or — as it does by default when a certificate
+isn't due for renewal yet — left the existing one (an `/etc/letsencrypt/archive/` entry and its
+`live/` symlinks) untouched: either way, whatever is currently in `live/` gets installed.
+
+**Requirements:** `certbot` must already be installed on the server (GoNix does not install it),
+and the domain's DNS must be managed by the Cloudflare account the API token belongs to. Every run
+is recorded in the [audit log](#logs) as `wildcard_certificate_issued`.
+
+**Live progress, not a frozen screen:** most of the time this takes is spent waiting for the TXT
+record to propagate on the public DNS — this can be a few minutes. Rather than leaving the UI
+looking hung, GoNix streams certbot's own output live as it happens, plus a periodic heartbeat
+line, so you always see that something is happening; the full log stays on screen (scrollable with
+`↑↓`) once the run finishes, whether it succeeded or failed.
+
+#### Renewing a certificate
+
+Selecting an existing certificate from the **Certificates** screen opens a small submenu with
+**"View Details"** and **"Renew Certificate (Certbot + Cloudflare)"**. Renewing:
+
+- Only asks for the Cloudflare API token again (and, optionally, an email) — never for the domain,
+  which is already known, and never stores the token between runs.
+- Passes `--force-renewal` to certbot, so it's unconditional once confirmed (unlike a fresh "Get
+  Wildcard Certificate" run, which leaves an unexpired certificate alone by default).
+- Warns first if the certificate still has more than 30 days of validity left — matching certbot
+  and Let's Encrypt's own default renewal threshold — since renewing earlier than that only burns
+  into Let's Encrypt's rate limits for no benefit. You can still confirm and renew anyway (e.g. if
+  you just changed something about the domain's DNS setup and want to verify the flow works).
+- On success, also re-runs `nginx -t` and reloads Nginx automatically: the certificate's file path
+  under the certificates directory doesn't change on renewal, so any host already configured to use
+  it only needs Nginx to reread the (now updated) file, not a configuration change.
 
 ## Access Lists
 

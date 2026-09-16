@@ -135,6 +135,24 @@ func TestExpiringSoonStatus(t *testing.T) {
 	}
 }
 
+func TestDueForRenewal(t *testing.T) {
+	dir := t.TempDir()
+
+	freshDir := filepath.Join(dir, "fresh.com")
+	writeCert(t, freshDir, time.Now().Add(80*24*time.Hour), false)
+	fresh := Parse("fresh.com", freshDir, filepath.Join(freshDir, "fullchain.pem"), filepath.Join(freshDir, "privkey.pem"))
+	if fresh.DueForRenewal() {
+		t.Error("a certificate with 80 days left should not be due for renewal")
+	}
+
+	dueDir := filepath.Join(dir, "due.com")
+	writeCert(t, dueDir, time.Now().Add(10*24*time.Hour), false)
+	due := Parse("due.com", dueDir, filepath.Join(dueDir, "fullchain.pem"), filepath.Join(dueDir, "privkey.pem"))
+	if !due.DueForRenewal() {
+		t.Error("a certificate with 10 days left should be due for renewal")
+	}
+}
+
 func TestScanOnlyReturnsCompletePairs(t *testing.T) {
 	dir := t.TempDir()
 	writeCert(t, filepath.Join(dir, "complete.com"), time.Now().Add(90*24*time.Hour), false)

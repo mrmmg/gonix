@@ -40,6 +40,12 @@ const (
 // "expiring soon".
 const ExpiringSoonWindow = 21 * 24 * time.Hour
 
+// RenewalWindow mirrors certbot/Let's Encrypt's own default renewal
+// threshold: a certificate is considered due for renewal once it has this
+// much validity or less remaining. Renewing much earlier than this is
+// unnecessary and burns into Let's Encrypt's rate limits for no benefit.
+const RenewalWindow = 30 * 24 * time.Hour
+
 // Certificate describes one discovered certificate directory.
 type Certificate struct {
 	Domain      string // directory name, typically the primary domain
@@ -72,6 +78,12 @@ func (c Certificate) RemainingHuman() string {
 // ExpiresAtExact returns the expiration timestamp formatted as Y-m-d H:i:s.
 func (c Certificate) ExpiresAtExact() string {
 	return c.NotAfter.Format("2006-01-02 15:04:05")
+}
+
+// DueForRenewal reports whether c has RenewalWindow or less validity left
+// (or has already expired).
+func (c Certificate) DueForRenewal() bool {
+	return time.Until(c.NotAfter) <= RenewalWindow
 }
 
 func humanDuration(d time.Duration) string {

@@ -4,12 +4,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mrmmg/gonix/internal/accesslist"
+	"github.com/mrmmg/gonix/internal/acme"
 	"github.com/mrmmg/gonix/internal/audit"
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
@@ -26,6 +28,16 @@ func main() {
 		return
 	case len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h"):
 		printUsage()
+		return
+	case len(os.Args) > 2 && os.Args[1] == "acme-hook":
+		// Hidden plumbing command: certbot's --manual-auth-hook/
+		// --manual-cleanup-hook invoke "gonix acme-hook auth|cleanup" as a
+		// subprocess (see internal/acme and internal/tui's wildcard
+		// certificate wizard). Not meant to be run by hand.
+		if err := acme.RunHook(context.Background(), os.Args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, "gonix acme-hook:", err)
+			os.Exit(1)
+		}
 		return
 	}
 
