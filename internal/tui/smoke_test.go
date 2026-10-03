@@ -37,7 +37,7 @@ func testDeps(t *testing.T) Deps {
 	if err != nil {
 		t.Fatalf("NewLogger: %v", err)
 	}
-	accessLists, err := accesslist.NewStore(cfg.AccessLists.Directory)
+	accessLists, err := accesslist.NewStore(cfg.AccessLists.Directory, cfg.AccessLists.Group)
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}

@@ -90,7 +90,16 @@ func run() error {
 		return fmt.Errorf("initializing audit log: %w", err)
 	}
 
-	accessLists, err := accesslist.NewStore(cfg.AccessLists.Directory)
+	// Nginx workers, not the root master process, read htpasswd files, so
+	// they must be owned by the worker group.
+	if cfg.AccessLists.Group == "" {
+		group, err := nginx.DetectWorkerGroup(context.Background(), cfg.Nginx.BinaryPath, cfg.Nginx.ConfigDir)
+		if err != nil {
+			return fmt.Errorf("%w; set access_lists.group in %s", err, cfgPath)
+		}
+		cfg.AccessLists.Group = group
+	}
+	accessLists, err := accesslist.NewStore(cfg.AccessLists.Directory, cfg.AccessLists.Group)
 	if err != nil {
 		return fmt.Errorf("initializing access list store: %w", err)
 	}

@@ -28,6 +28,10 @@ backup:
 
 access_lists:
   directory: /etc/gonix/accesslists
+  # Group that owns the htpasswd files, so Nginx worker processes can read
+  # them. Leave empty to detect it from nginx.conf's `user` directive or
+  # `nginx -V` (e.g. www-data on Debian/Ubuntu, http on Arch, nginx on RHEL).
+  group: ""
 
 error_pages:
   # Generated error page snippets (gonix-error-pages-<name>.conf) are

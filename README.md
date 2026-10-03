@@ -441,6 +441,19 @@ auth_basic "Restricted";
 auth_basic_user_file /etc/gonix/accesslists/<name>.htpasswd;
 ```
 
+Nginx worker processes (not the root master process) read these files on every request, so they
+must be readable by the worker group. On startup GoNix detects that group — from the `user`
+directive in `nginx.conf`, else from `nginx -V` (`www-data` on Debian/Ubuntu, `http` on Arch,
+`nginx` on RHEL) — or uses `access_lists.group` from `/etc/gonix/gonix.yaml` when set. It then:
+
+- gives `/etc/gonix/accesslists/` that group with mode `2750` (setgid, so new files inherit it),
+- sets every `*.htpasswd` file to mode `0640` with that group, repairing existing ones,
+- adds only the "others execute" bit (`o+x`) to parent directories such as `/etc/gonix`, so
+  workers can traverse them without listing or reading anything else in them.
+
+Without this, Nginx answers authenticated requests with **500** and logs
+`open() ".../<name>.htpasswd" failed (13: Permission denied)`.
+
 > **Note:** bcrypt-hashed htpasswd entries require Nginx to be linked against a libc/crypt
 > implementation that supports bcrypt (true for modern glibc via libxcrypt, and for most current
 > Linux distributions). If your Nginx build cannot verify bcrypt hashes, regenerate the affected

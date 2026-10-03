@@ -8,9 +8,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -26,14 +29,114 @@ type AccessList struct {
 // "<directory>/<name>.htpasswd" in standard htpasswd (bcrypt) format.
 type Store struct {
 	Directory string
+	// Group owns the directory and every htpasswd file. It must be the
+	// Nginx worker group, since workers (not the root master process) open
+	// auth_basic_user_file on each request. Empty leaves ownership as is.
+	Group string
+	gid   int // -1 when Group is empty
 }
 
-// NewStore returns a Store rooted at dir, creating it if necessary.
-func NewStore(dir string) (*Store, error) {
+// NewStore returns a Store rooted at dir, creating it if necessary. When
+// group is non-empty, the directory, its existing htpasswd files and its
+// parent directories are made readable (or traversable) by that group.
+func NewStore(dir, group string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("creating access list directory: %w", err)
 	}
-	return &Store{Directory: dir}, nil
+	s := &Store{Directory: dir, Group: group, gid: -1}
+	if group == "" {
+		return s, nil
+	}
+	g, err := user.LookupGroup(group)
+	if err != nil {
+		return nil, fmt.Errorf("looking up access list group %q: %w", group, err)
+	}
+	if s.gid, err = strconv.Atoi(g.Gid); err != nil {
+		return nil, fmt.Errorf("parsing gid of group %q: %w", group, err)
+	}
+	if err := s.fixPermissions(); err != nil {
+		return nil, fmt.Errorf("setting access list permissions for group %q: %w", group, err)
+	}
+	return s, nil
+}
+
+// fixPermissions gives s.gid read access to the directory and every
+// htpasswd file in it. The directory gets the setgid bit, so files created
+// later inherit the group too.
+func (s *Store) fixPermissions() error {
+	if err := ensureTraversable(filepath.Dir(s.Directory), s.gid); err != nil {
+		return err
+	}
+	if err := os.Chown(s.Directory, -1, s.gid); err != nil {
+		return err
+	}
+	if err := os.Chmod(s.Directory, 0o750|os.ModeSetgid); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(s.Directory)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".htpasswd") {
+			continue
+		}
+		if err := s.secure(filepath.Join(s.Directory, e.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensureTraversable makes sure gid can traverse dir and every ancestor,
+// adding only the "others execute" bit (never read) where neither group
+// nor others could traverse it, e.g. /etc/gonix with mode 0750 root:root.
+func ensureTraversable(dir string, gid int) error {
+	for {
+		info, err := os.Stat(dir)
+		if err != nil {
+			return err
+		}
+		perm := info.Mode().Perm()
+		groupOK := false
+		if st, ok := info.Sys().(*syscall.Stat_t); ok {
+			groupOK = int(st.Gid) == gid && perm&0o010 != 0
+		}
+		if perm&0o001 == 0 && !groupOK {
+			special := info.Mode() & (os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
+			if err := os.Chmod(dir, special|perm|0o001); err != nil {
+				return err
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return nil
+		}
+		dir = parent
+	}
+}
+
+// secure gives an htpasswd file mode 0640 owned by the store's group.
+func (s *Store) secure(path string) error {
+	if s.gid < 0 {
+		return nil
+	}
+	if err := os.Chown(path, -1, s.gid); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o640)
+}
+
+// writeFile writes an htpasswd file and applies the store's ownership.
+func (s *Store) writeFile(name string, data []byte) error {
+	path := s.path(name)
+	if err := os.WriteFile(path, data, 0o640); err != nil {
+		return err
+	}
+	if err := s.secure(path); err != nil {
+		return fmt.Errorf("setting permissions on %s: %w", path, err)
+	}
+	return nil
 }
 
 func (s *Store) path(name string) string {
@@ -90,7 +193,7 @@ func (s *Store) Create(name string) error {
 	if s.Exists(name) {
 		return fmt.Errorf("access list %q already exists", name)
 	}
-	return os.WriteFile(s.path(name), nil, 0o640)
+	return s.writeFile(name, nil)
 }
 
 // Delete removes an access list and its htpasswd file entirely.
@@ -134,7 +237,7 @@ func (s *Store) writeEntries(name string, entries []htEntry) error {
 	for _, e := range entries {
 		fmt.Fprintf(&b, "%s:%s\n", e.user, e.hash)
 	}
-	return os.WriteFile(s.path(name), []byte(b.String()), 0o640)
+	return s.writeFile(name, []byte(b.String()))
 }
 
 // AddUser adds a new user with the given plaintext password to the access

@@ -46,6 +46,9 @@ type BackupConfig struct {
 
 type AccessListsConfig struct {
 	Directory string `yaml:"directory"`
+	// Group owns the htpasswd files so Nginx worker processes can read
+	// them. Empty means detect the Nginx worker group automatically.
+	Group string `yaml:"group"`
 }
 
 type ErrorPagesConfig struct {

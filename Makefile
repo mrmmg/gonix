@@ -41,7 +41,9 @@ lint: vet fmt
 install: release
 	@echo "==> Installing $(BINARY) to $(BIN_DIR)"
 	sudo mkdir -p "$(BIN_DIR)" "$(CONFIG_DIR)/backups" "$(CONFIG_DIR)/accesslists" /var/log/gonix
-	sudo chmod 750 "$(CONFIG_DIR)" "$(CONFIG_DIR)/backups" "$(CONFIG_DIR)/accesslists"
+	sudo chmod 751 "$(CONFIG_DIR)"
+	sudo chmod 750 "$(CONFIG_DIR)/backups"
+	sudo chmod 2750 "$(CONFIG_DIR)/accesslists"
 	sudo install -m 0755 "$(BINARY)" "$(BIN_DIR)/$(BINARY)"
 	sudo sh -c "echo '$(VERSION)' > '$(INSTALL_DIR)/VERSION'"
 	@echo "==> Linking global command: $(GLOBAL_BIN_DIR)/$(BINARY)"

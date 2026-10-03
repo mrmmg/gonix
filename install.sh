@@ -159,7 +159,11 @@ chmod +x "${tmpdir}/${asset_name}"
 step "Installing Gonix to ${INSTALL_DIR}..."
 
 $SUDO mkdir -p "$BIN_DIR" "$CONFIG_DIR" "$BACKUP_DIR" "$ACCESSLIST_DIR" "$AUDIT_LOG_DIR"
-$SUDO chmod 750 "$CONFIG_DIR" "$BACKUP_DIR" "$ACCESSLIST_DIR"
+# /etc/gonix is traversable (not readable) by others so Nginx workers can
+# reach the access lists; gonix sets their group on startup.
+$SUDO chmod 751 "$CONFIG_DIR"
+$SUDO chmod 750 "$BACKUP_DIR"
+$SUDO chmod 2750 "$ACCESSLIST_DIR"
 $SUDO install -m 0755 "${tmpdir}/${asset_name}" "${BIN_DIR}/gonix"
 $SUDO sh -c "echo '${version#v}' > '${INSTALL_DIR}/VERSION'"
 
@@ -199,6 +203,7 @@ backup:
 
 access_lists:
   directory: /etc/gonix/accesslists
+  group: ""
 
 error_pages:
   snippets_directory: /etc/nginx/snippets
