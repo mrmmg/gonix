@@ -9,6 +9,7 @@ import (
 	"github.com/mrmmg/gonix/internal/audit"
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
+	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/system"
@@ -26,6 +27,7 @@ type Deps struct {
 	HostService *hosts.Service
 	Certs       string // certificate directory, screens call certificates.Scan themselves
 	AccessLists *accesslist.Store
+	ErrorPages  *errorpages.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger
 	Backups     *backup.Backuper

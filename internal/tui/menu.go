@@ -16,6 +16,7 @@ const (
 	miCertificates
 	miNginxStatus
 	miAccessLists
+	miErrorPages
 	miSettings
 	miExit
 )
@@ -29,6 +30,7 @@ func newMainMenu(deps Deps) *mainMenu {
 			{title: "Certificates", desc: "inspect TLS certificates"},
 			{title: "Nginx Status", desc: "service control & process monitoring"},
 			{title: "Access Lists", desc: "HTTP Basic Authentication"},
+			{title: "Error Pages", desc: "custom error page snippets for hosts"},
 			{title: "Settings", desc: "GoNix configuration"},
 			{title: "Exit", desc: ""},
 		}),
@@ -56,6 +58,8 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newStatusScreen(s.deps))
 			case miAccessLists:
 				return s, navPush(newAccessListsScreen(s.deps))
+			case miErrorPages:
+				return s, navPush(newErrorPagesScreen(s.deps))
 			case miSettings:
 				return s, navPush(newSettingsScreen(s.deps))
 			case miExit:

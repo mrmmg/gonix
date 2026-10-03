@@ -38,6 +38,11 @@ server {
     error_log off;
 {{- end }}
 
+{{- if .ErrorPagesFile }}
+
+    include {{ .ErrorPagesFile }};
+{{- end }}
+
 {{- if eq (printf "%v" .Host.Mode) "static" }}
 
     root {{ .Host.Root }};

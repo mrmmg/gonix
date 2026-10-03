@@ -38,7 +38,7 @@ func newTestService(t *testing.T, ok bool) (*Service, string, string) {
 	enabled := t.TempDir()
 	backupDir := t.TempDir()
 
-	renderer, err := nginx.NewRenderer(t.TempDir(), t.TempDir(), t.TempDir())
+	renderer, err := nginx.NewRenderer(t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir())
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}

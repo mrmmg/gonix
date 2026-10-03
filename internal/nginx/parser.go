@@ -27,6 +27,7 @@ var (
 	reProxyReadTO   = regexp.MustCompile(`(?m)^\s*proxy_read_timeout\s+([^;]+);`)
 	reProxySendTO   = regexp.MustCompile(`(?m)^\s*proxy_send_timeout\s+([^;]+);`)
 	reMaxBodySize   = regexp.MustCompile(`(?m)^\s*client_max_body_size\s+([^;]+);`)
+	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
 
 // Summary is a lightweight, best-effort extraction of information from an
@@ -108,14 +109,17 @@ func ParseManagedHost(content string) (Host, error) {
 		h.ErrorLog = false
 	}
 
-	// Host-level auth_basic_user_file appears before the first location
-	// block; anything after belongs to a location.
-	if idx := reLocationStart.FindStringIndex(content); idx == nil {
-		if m := reAuthUserFile.FindStringSubmatch(content); m != nil {
-			h.AccessListName = accessListNameFromPath(m[1])
-		}
-	} else if m := reAuthUserFile.FindStringSubmatch(content[:idx[0]]); m != nil {
+	// Host-level auth_basic_user_file and the error pages include appear
+	// before the first location block; anything after belongs to a location.
+	serverLevel := content
+	if idx := reLocationStart.FindStringIndex(content); idx != nil {
+		serverLevel = content[:idx[0]]
+	}
+	if m := reAuthUserFile.FindStringSubmatch(serverLevel); m != nil {
 		h.AccessListName = accessListNameFromPath(m[1])
+	}
+	if m := reErrorPagesInc.FindStringSubmatch(serverLevel); m != nil {
+		h.ErrorPagesSnippet = m[1]
 	}
 
 	h.Locations = parseLocations(content)

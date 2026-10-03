@@ -26,6 +26,7 @@ const (
 	hdWebSocket
 	hdProxy
 	hdAccessList
+	hdErrorPages
 	hdLogs
 	hdViewConfig
 	hdBackupRestore
@@ -51,6 +52,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{title: "WebSocket Configuration"},
 		{title: "Proxy Configuration"},
 		{title: "Access List"},
+		{title: "Error Pages", desc: errorPagesDesc(s.host)},
 		{title: "Access / Error Logs"},
 		{title: "View Configuration"},
 		{title: "Backup / Restore"},
@@ -65,6 +67,13 @@ func (s *hostDetailScreen) rebuildMenu() {
 		}
 	}
 	s.menu = newSimpleMenu(items)
+}
+
+func errorPagesDesc(h nginx.ListedHost) string {
+	if h.ErrorPagesSnippet == "" {
+		return mutedStyle.Render("(none)")
+	}
+	return h.ErrorPagesSnippet
 }
 
 func (s *hostDetailScreen) Init() tea.Cmd { return nil }
@@ -101,7 +110,7 @@ func (s *hostDetailScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 	unmanagedBlocked := map[int]bool{
 		hdAddPath: true, hdAddCustomPath: true, hdSSL: true,
-		hdWebSocket: true, hdProxy: true, hdAccessList: true, hdLogs: true,
+		hdWebSocket: true, hdProxy: true, hdAccessList: true, hdErrorPages: true, hdLogs: true,
 	}
 	if !s.host.Managed && unmanagedBlocked[choice] {
 		return newResultScreen(s.deps, "Unmanaged Host", false,
@@ -130,6 +139,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 		return newProxyWizard(s.deps, s.host), nil
 	case hdAccessList:
 		return newHostAccessListScreen(s.deps, s.host), nil
+	case hdErrorPages:
+		return newHostErrorPagesScreen(s.deps, s.host), nil
 	case hdLogs:
 		return newLogsWizard(s.deps, s.host), nil
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/mrmmg/gonix/internal/audit"
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
+	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/system"
@@ -24,8 +25,10 @@ func testDeps(t *testing.T) Deps {
 	cfg.Certificates.Directory = t.TempDir()
 	cfg.AccessLists.Directory = t.TempDir()
 	cfg.Backup.Directory = t.TempDir()
+	cfg.ErrorPages.SnippetsDirectory = t.TempDir()
+	cfg.ErrorPages.PagesDirectory = t.TempDir()
 
-	renderer, err := nginx.NewRenderer(t.TempDir(), t.TempDir(), cfg.AccessLists.Directory)
+	renderer, err := nginx.NewRenderer(t.TempDir(), t.TempDir(), cfg.AccessLists.Directory, cfg.ErrorPages.SnippetsDirectory)
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -37,6 +40,10 @@ func testDeps(t *testing.T) Deps {
 	accessLists, err := accesslist.NewStore(cfg.AccessLists.Directory)
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
+	}
+	errorPagesStore, err := errorpages.NewStore(cfg.ErrorPages.SnippetsDirectory)
+	if err != nil {
+		t.Fatalf("errorpages.NewStore: %v", err)
 	}
 	backups := backup.New(cfg.Backup.Directory, 5)
 	systemSvc := system.NewService("nginx")
@@ -54,9 +61,15 @@ func testDeps(t *testing.T) Deps {
 		Manager:     manager,
 		HostService: svc,
 		AccessLists: accessLists,
-		SystemSvc:   systemSvc,
-		Audit:       auditLogger,
-		Backups:     backups,
+		ErrorPages: &errorpages.Service{
+			Store:   errorPagesStore,
+			Manager: manager,
+			Tester:  nginx.NewValidator("nginx"),
+			Audit:   auditLogger,
+		},
+		SystemSvc: systemSvc,
+		Audit:     auditLogger,
+		Backups:   backups,
 	}
 }
 

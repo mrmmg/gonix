@@ -28,3 +28,12 @@ backup:
 
 access_lists:
   directory: /etc/gonix/accesslists
+
+error_pages:
+  # Generated error page snippets (gonix-error-pages-<name>.conf) are
+  # written here and included by hosts that use them.
+  snippets_directory: /etc/nginx/snippets
+  # Default directory holding the HTML pages, named <code>.html (e.g.
+  # 502.html). Each snippet stores its own directory; this is only the
+  # default offered when creating one.
+  pages_directory: /var/www/html/error_pages

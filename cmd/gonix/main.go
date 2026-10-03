@@ -15,6 +15,7 @@ import (
 	"github.com/mrmmg/gonix/internal/audit"
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
+	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/system"
@@ -75,7 +76,7 @@ func run() error {
 		return fmt.Errorf("loading configuration: %w", err)
 	}
 
-	renderer, err := nginx.NewRenderer(cfg.Logs.NginxDirectory, cfg.Logs.NginxDirectory, cfg.AccessLists.Directory)
+	renderer, err := nginx.NewRenderer(cfg.Logs.NginxDirectory, cfg.Logs.NginxDirectory, cfg.AccessLists.Directory, cfg.ErrorPages.SnippetsDirectory)
 	if err != nil {
 		return fmt.Errorf("initializing template renderer: %w", err)
 	}
@@ -94,6 +95,11 @@ func run() error {
 		return fmt.Errorf("initializing access list store: %w", err)
 	}
 
+	errorPagesStore, err := errorpages.NewStore(cfg.ErrorPages.SnippetsDirectory)
+	if err != nil {
+		return fmt.Errorf("initializing error pages store: %w", err)
+	}
+
 	hostService := &hosts.Service{
 		Manager:  manager,
 		Tester:   validator,
@@ -102,11 +108,20 @@ func run() error {
 		Audit:    auditLogger,
 	}
 
+	errorPagesService := &errorpages.Service{
+		Store:    errorPagesStore,
+		Manager:  manager,
+		Tester:   validator,
+		Reloader: systemSvc,
+		Audit:    auditLogger,
+	}
+
 	deps := tui.Deps{
 		Config:      cfg,
 		Manager:     manager,
 		HostService: hostService,
 		AccessLists: accessLists,
+		ErrorPages:  errorPagesService,
 		SystemSvc:   systemSvc,
 		Audit:       auditLogger,
 		Backups:     backups,

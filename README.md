@@ -37,6 +37,7 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
   - [Get Wildcard Certificate (Certbot)](#get-wildcard-certificate-certbot)
     - [Renewing a certificate](#renewing-a-certificate)
 - [Access Lists](#access-lists)
+- [Error Pages](#error-pages)
 - [Logs](#logs)
 - [Backups](#backups)
 - [Development](#development)
@@ -135,6 +136,8 @@ a release is created or edited by hand.
   (no `openssl` subprocess required).
 - **Access Lists (HTTP Basic Auth)** — reusable, bcrypt-hashed `htpasswd`-format user lists that
   can be applied to a host or a specific location.
+- **Error pages** — reusable, named snippets mapping HTTP error codes (e.g. 502, 503, 504) to your
+  own HTML pages, included by any host with one menu choice.
 - **Access/error logs** — per-host enable/disable, with logrotate configured on install.
 - **Audit log** — every change made through the application is recorded with timestamp, Linux
   user, action, target and result.
@@ -295,12 +298,14 @@ gonix/
 │   ├── acme/              automated wildcard certificates: certbot + Cloudflare API DNS-01
 │   │                      (see "Get Wildcard Certificate (Certbot)" under SSL Certificates)
 │   ├── accesslist/        HTTP Basic Auth "access lists" backed by htpasswd (bcrypt) files
+│   ├── errorpages/        named error page snippets (error_page → <code>.html) included by hosts
 │   ├── audit/             append-only audit log
 │   ├── backup/            configuration snapshot/restore
 │   ├── system/            systemctl control + /proc-based process & port monitoring
 │   ├── logs/              log path helpers + logrotate config generation
 │   └── config/            centralized, YAML-driven configuration (no hard-coded paths)
-├── templates/             embedded Nginx config templates (host.tmpl, location.tmpl)
+├── templates/             embedded Nginx config templates (host.tmpl, location.tmpl,
+│                          errorpages.tmpl)
 ├── configs/
 │   ├── default.yaml       default GoNix configuration, also shipped as a release asset
 │   └── logrotate.conf     logrotate policy installed by `make install` and install.sh
@@ -440,6 +445,48 @@ auth_basic_user_file /etc/gonix/accesslists/<name>.htpasswd;
 > implementation that supports bcrypt (true for modern glibc via libxcrypt, and for most current
 > Linux distributions). If your Nginx build cannot verify bcrypt hashes, regenerate the affected
 > access list's entries with a tool that emits an algorithm your `crypt(3)` supports.
+
+## Error Pages
+
+An error pages snippet is a named, reusable Nginx snippet that answers selected HTTP error codes
+with your own static HTML pages. Each snippet stores **one** pages directory, holding one file
+per code named `<code>.html` (e.g. `502.html`). Create and edit snippets from **Main Menu →
+Error Pages**; the default directory offered is `error_pages.pages_directory` in
+`/etc/gonix/gonix.yaml` (`/var/www/html/error_pages`).
+
+A snippet named `default` handling 502 and 504 is written to
+`/etc/nginx/snippets/gonix-error-pages-default.conf`:
+
+```nginx
+error_page 502 /__gonix_error_pages/502.html;
+error_page 504 /__gonix_error_pages/504.html;
+
+location ^~ /__gonix_error_pages/ {
+    internal;
+    auth_basic off;
+    alias /var/www/html/error_pages/;
+}
+```
+
+Choosing it for a host (in **Add New Host**, or a host's **Error Pages** menu) adds a single line
+at server level:
+
+```nginx
+include /etc/nginx/snippets/gonix-error-pages-default.conf;
+```
+
+- Changing a snippet's codes or directory updates every host that includes it. Like every
+  other change, it is tested with `nginx -t` and rolled back if the test fails.
+- A snippet cannot be deleted while a host still uses it.
+- `auth_basic off` keeps error pages viewable on hosts protected by an access list.
+- Pages are served from an internal location, so they cannot be requested directly, and assets
+  must be inlined (CSS in `<style>`, images as `data:` URIs).
+- Only errors Nginx itself returns are replaced, e.g. 502/504 when the upstream is down or slow.
+  Error responses produced by the upstream application pass through unchanged.
+- A missing `<code>.html` does not break the configuration; GoNix warns about it and shows each
+  page's status on the snippet's screen.
+- A **disabled** host has no server block at all, so its requests are handled by Nginx's default
+  server, not by its error pages.
 
 ## Logs
 

@@ -41,6 +41,8 @@ func (s *settingsScreen) View(width, height int) string {
 	body += fmt.Sprintf("Audit log file:         %s\n", c.Logs.AuditFile)
 	body += fmt.Sprintf("Backup directory:       %s (keep %d)\n", c.Backup.Directory, c.Backup.KeepCount)
 	body += fmt.Sprintf("Access lists directory: %s\n", c.AccessLists.Directory)
+	body += fmt.Sprintf("Error page snippets:    %s\n", c.ErrorPages.SnippetsDirectory)
+	body += fmt.Sprintf("Error pages (default):  %s\n", c.ErrorPages.PagesDirectory)
 	help := [][2]string{{"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }

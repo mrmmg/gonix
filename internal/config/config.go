@@ -20,6 +20,7 @@ type Config struct {
 	Logs         LogsConfig         `yaml:"logs"`
 	Backup       BackupConfig       `yaml:"backup"`
 	AccessLists  AccessListsConfig  `yaml:"access_lists"`
+	ErrorPages   ErrorPagesConfig   `yaml:"error_pages"`
 }
 
 type NginxConfig struct {
@@ -47,6 +48,15 @@ type AccessListsConfig struct {
 	Directory string `yaml:"directory"`
 }
 
+type ErrorPagesConfig struct {
+	// SnippetsDirectory is where GoNix writes the generated error page
+	// snippets that hosts include.
+	SnippetsDirectory string `yaml:"snippets_directory"`
+	// PagesDirectory is the default directory holding the HTML pages
+	// (<code>.html), offered when creating a new snippet.
+	PagesDirectory string `yaml:"pages_directory"`
+}
+
 // Default returns the built-in configuration used when no configuration file
 // is present on disk. It matches the standard Debian/RHEL Nginx layout.
 func Default() *Config {
@@ -70,6 +80,10 @@ func Default() *Config {
 		},
 		AccessLists: AccessListsConfig{
 			Directory: "/etc/gonix/accesslists",
+		},
+		ErrorPages: ErrorPagesConfig{
+			SnippetsDirectory: "/etc/nginx/snippets",
+			PagesDirectory:    "/var/www/html/error_pages",
 		},
 	}
 }

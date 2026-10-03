@@ -110,6 +110,13 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 		},
 	)
 
+	// Only offer error pages when at least one snippet exists.
+	if opts := errorPagesOptions(deps); len(opts) > 1 {
+		fields = append(fields, wizardField{
+			Key: "error_pages", Label: "Error pages snippet:", Kind: fieldChoice, Options: opts,
+		})
+	}
+
 	return newWizard("Add New Host", fields, func(values map[string]string) (screen, tea.Cmd) {
 		return finishAddHost(deps, values)
 	}, func() (screen, tea.Cmd) { return nil, navPop() })
@@ -179,6 +186,10 @@ func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 		}
 		h.SSL.CertFile = deps.Config.Certificates.Directory + "/" + certName + "/fullchain.pem"
 		h.SSL.KeyFile = deps.Config.Certificates.Directory + "/" + certName + "/privkey.pem"
+	}
+
+	if sn := v["error_pages"]; sn != "" && sn != "(none)" {
+		h.ErrorPagesSnippet = sn
 	}
 
 	_, err := deps.HostService.CreateHost(backgroundCtx(), h)

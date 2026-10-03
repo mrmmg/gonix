@@ -16,12 +16,13 @@ type Renderer struct {
 	accessLogDir      string
 	errorLogDir       string
 	accessListFileDir string
+	snippetsDir       string
 }
 
 // NewRenderer builds a Renderer. accessLogDir/errorLogDir are typically both
 // /var/log/nginx; accessListFileDir is where htpasswd files for access lists
-// are stored.
-func NewRenderer(accessLogDir, errorLogDir, accessListFileDir string) (*Renderer, error) {
+// are stored; snippetsDir is where error pages snippets are stored.
+func NewRenderer(accessLogDir, errorLogDir, accessListFileDir, snippetsDir string) (*Renderer, error) {
 	tmpl, err := template.New("host.tmpl").ParseFS(templates.FS, "host.tmpl", "location.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parsing templates: %w", err)
@@ -31,6 +32,7 @@ func NewRenderer(accessLogDir, errorLogDir, accessListFileDir string) (*Renderer
 		accessLogDir:      accessLogDir,
 		errorLogDir:       errorLogDir,
 		accessListFileDir: accessListFileDir,
+		snippetsDir:       snippetsDir,
 	}, nil
 }
 
@@ -40,6 +42,7 @@ type renderView struct {
 	AccessLogPath  string
 	ErrorLogPath   string
 	AccessListFile string
+	ErrorPagesFile string
 }
 
 func (r *Renderer) htpasswdPath(name string) string {
@@ -69,6 +72,9 @@ func (r *Renderer) Render(h Host) (string, error) {
 		AccessLogPath:  filepath.Join(r.accessLogDir, h.ServerName+".access.log"),
 		ErrorLogPath:   filepath.Join(r.errorLogDir, h.ServerName+".error.log"),
 		AccessListFile: r.htpasswdPath(h.AccessListName),
+	}
+	if h.ErrorPagesSnippet != "" {
+		view.ErrorPagesFile = filepath.Join(r.snippetsDir, SnippetFileName(h.ErrorPagesSnippet))
 	}
 
 	var buf bytes.Buffer

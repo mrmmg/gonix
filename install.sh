@@ -199,6 +199,10 @@ backup:
 
 access_lists:
   directory: /etc/gonix/accesslists
+
+error_pages:
+  snippets_directory: /etc/nginx/snippets
+  pages_directory: /var/www/html/error_pages
 EOF
         $SUDO chmod 0640 "$CONFIG_FILE"
     fi

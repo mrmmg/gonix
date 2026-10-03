@@ -37,6 +37,7 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
   - [دریافت گواهی Wildcard (Certbot)](#دریافت-گواهی-wildcard-certbot)
     - [تمدید یک گواهی](#تمدید-یک-گواهی)
 - [Access List‌ها](#access-listها)
+- [صفحه‌های خطا (Error Pages)](#صفحههای-خطا-error-pages)
 - [لاگ‌ها](#لاگها)
 - [پشتیبان‌گیری (Backups)](#پشتیبانگیری-backups)
 - [توسعه](#توسعه)
@@ -300,12 +301,14 @@ gonix/
 │   ├── acme/               دریافت خودکار گواهی wildcard: certbot + Cloudflare API با DNS-01
 │   │                       (نگاه کنید به «دریافت گواهی Wildcard (Certbot)» زیر گواهی‌های SSL)
 │   ├── accesslist/        «Access List»های احراز هویت پایه‌ی HTTP، بر پایه‌ی فایل‌های htpasswd (bcrypt)
+│   ├── errorpages/        snippetهای نام‌گذاری‌شده‌ی صفحه‌ی خطا (error_page → <code>.html) که هاست‌ها include می‌کنند
 │   ├── audit/             لاگ حسابرسیِ append-only
 │   ├── backup/            پشتیبان‌گیری/بازیابی پیکربندی
 │   ├── system/             کنترل systemctl + مانیتورینگ process و پورت بر پایه‌ی /proc
 │   ├── logs/               کمک‌تابع‌های مسیر لاگ + تولید پیکربندی logrotate
 │   └── config/             پیکربندی متمرکز و مبتنی بر YAML (بدون مسیر hard-code شده)
-├── templates/             قالب‌های پیکربندی Nginx که embed شده‌اند (host.tmpl، location.tmpl)
+├── templates/             قالب‌های پیکربندی Nginx که embed شده‌اند (host.tmpl، location.tmpl،
+│                          errorpages.tmpl)
 ├── configs/
 │   ├── default.yaml       پیکربندی پیش‌فرض GoNix، که به‌عنوان یک release asset هم منتشر می‌شود
 │   └── logrotate.conf     سیاست logrotate که توسط `make install` و install.sh نصب می‌شود
@@ -448,6 +451,48 @@ auth_basic_user_file /etc/gonix/accesslists/<name>.htpasswd;
 > اکثر توزیع‌های لینوکس فعلی هم صادق است). اگر build شما از Nginx نتوانست هش‌های bcrypt را
 > تأیید کند، رکوردهای آن Access List را با ابزاری که الگوریتم پشتیبانی‌شده توسط `crypt(3)` شما
 > را می‌سازد، دوباره بسازید.
+
+## صفحه‌های خطا (Error Pages)
+
+یک Error Pages snippet، یک snippet نام‌گذاری‌شده و قابل‌استفاده‌ی مجدد Nginx است که کدهای خطای
+انتخاب‌شده‌ی HTTP را با صفحه‌های HTML استاتیک خودتان جواب می‌دهد. هر snippet **یک** مسیر برای
+صفحه‌ها نگه می‌دارد که برای هر کد یک فایل با نام `<code>.html` (مثلاً `502.html`) در آن قرار دارد.
+ساخت و ویرایش snippetها از **Main Menu → Error Pages** انجام می‌شود؛ مسیر پیش‌فرض پیشنهادی،
+مقدار `error_pages.pages_directory` در `/etc/gonix/gonix.yaml` است (`/var/www/html/error_pages`).
+
+یک snippet با نام `default` که 502 و 504 را پوشش می‌دهد، در
+`/etc/nginx/snippets/gonix-error-pages-default.conf` نوشته می‌شود:
+
+```nginx
+error_page 502 /__gonix_error_pages/502.html;
+error_page 504 /__gonix_error_pages/504.html;
+
+location ^~ /__gonix_error_pages/ {
+    internal;
+    auth_basic off;
+    alias /var/www/html/error_pages/;
+}
+```
+
+انتخاب آن برای یک هاست (در **Add New Host** یا منوی **Error Pages** هر هاست) فقط یک خط در سطح
+server اضافه می‌کند:
+
+```nginx
+include /etc/nginx/snippets/gonix-error-pages-default.conf;
+```
+
+- تغییر کدها یا مسیر یک snippet، روی همه‌ی هاست‌هایی که آن را include کرده‌اند اعمال می‌شود. مثل
+  هر تغییر دیگری، با `nginx -t` تست می‌شود و در صورت شکست به حالت قبل برمی‌گردد.
+- تا وقتی هاستی از یک snippet استفاده می‌کند، نمی‌توان آن را حذف کرد.
+- `auth_basic off` باعث می‌شود صفحه‌های خطا روی هاست‌هایی که Access List دارند هم نمایش داده شوند.
+- صفحه‌ها از یک location داخلی (internal) سرو می‌شوند، پس مستقیم قابل درخواست نیستند و
+  فایل‌های جانبی باید داخل خود HTML باشند (CSS در `<style>` و تصاویر به‌صورت `data:` URI).
+- فقط خطاهایی که خود Nginx برمی‌گرداند جایگزین می‌شوند؛ مثلاً 502/504 وقتی upstream پایین یا کند
+  است. پاسخ‌های خطایی که خود برنامه‌ی upstream تولید می‌کند، بدون تغییر عبور می‌کنند.
+- نبودن فایل `<code>.html` پیکربندی را خراب نمی‌کند؛ GoNix درباره‌ی آن هشدار می‌دهد و وضعیت هر
+  صفحه را در صفحه‌ی snippet نشان می‌دهد.
+- هاستی که **غیرفعال** (disable) شده، اصلاً server block ندارد؛ بنابراین درخواست‌هایش به
+  default server در Nginx می‌رسد، نه به صفحه‌های خطای آن هاست.
 
 ## لاگ‌ها
 

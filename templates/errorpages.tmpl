@@ -1,0 +1,13 @@
+# Managed by GoNix. Error pages snippet: {{ .Name }}
+# Hosts using this snippet include it at server level. Each code below is
+# answered with <pages directory>/<code>.html.
+# Pages directory: {{ .Directory }}
+{{ range .Codes }}
+error_page {{ . }} {{ $.URIPrefix }}{{ . }}.html;
+{{- end }}
+
+location ^~ {{ .URIPrefix }} {
+    internal;
+    auth_basic off;
+    alias {{ .Directory }}/;
+}

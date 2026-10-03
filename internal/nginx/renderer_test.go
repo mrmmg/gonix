@@ -6,7 +6,7 @@ import (
 )
 
 func TestRenderReverseProxyHost(t *testing.T) {
-	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists")
+	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists", "/etc/nginx/snippets")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestRenderReverseProxyHost(t *testing.T) {
 }
 
 func TestRenderCustomLocation(t *testing.T) {
-	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists")
+	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists", "/etc/nginx/snippets")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -104,5 +104,52 @@ func TestHostValidate(t *testing.T) {
 	h.ServerName = "example.com"
 	if err := h.Validate(); err == nil {
 		t.Fatal("expected error for reverse proxy host with no locations")
+	}
+}
+
+func TestRenderAndParseErrorPagesSnippet(t *testing.T) {
+	r, err := NewRenderer("/var/log/nginx", "/var/log/nginx", "/etc/gonix/accesslists", "/etc/nginx/snippets")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+	h := Host{
+		ServerName:        "example.com",
+		Mode:              ModeReverseProxy,
+		Listen:            80,
+		AccessLog:         true,
+		ErrorLog:          true,
+		ErrorPagesSnippet: "default",
+		Locations: []Location{
+			{Path: "/", Proxy: &ProxyConfig{UpstreamScheme: "http", UpstreamHost: "127.0.0.1", UpstreamPort: 8080, HTTPVersion: "1.1"}},
+		},
+	}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(out, "include /etc/nginx/snippets/gonix-error-pages-default.conf;") {
+		t.Fatalf("missing error pages include:\n%s", out)
+	}
+
+	parsed, err := ParseManagedHost(out)
+	if err != nil {
+		t.Fatalf("ParseManagedHost: %v", err)
+	}
+	if parsed.ErrorPagesSnippet != "default" {
+		t.Errorf("ErrorPagesSnippet = %q, want %q", parsed.ErrorPagesSnippet, "default")
+	}
+
+	h.ErrorPagesSnippet = ""
+	out, err = r.Render(h)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(out, "include") {
+		t.Errorf("unexpected include without a snippet:\n%s", out)
+	}
+
+	h.ErrorPagesSnippet = "../evil"
+	if _, err := r.Render(h); err == nil {
+		t.Error("expected an error for an invalid snippet name")
 	}
 }

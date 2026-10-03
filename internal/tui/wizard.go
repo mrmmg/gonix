@@ -29,7 +29,10 @@ type wizardField struct {
 	Sensitive   bool     // for fieldText: mask input, e.g. API tokens
 	BoolDefault bool     // for fieldBool
 	Options     []string // for fieldChoice
-	Validate    func(value string) error
+	// ChoiceDefault preselects the matching option of a fieldChoice; the
+	// first option is preselected when it is empty or not found.
+	ChoiceDefault string
+	Validate      func(value string) error
 	// ShowIf allows a field to be skipped based on previously collected
 	// answers, e.g. only asking for the upstream port in Reverse Proxy mode.
 	ShowIf func(values map[string]string) bool
@@ -95,6 +98,12 @@ func (w *wizardScreen) enterStep(i int) {
 		}
 	case fieldChoice:
 		w.choiceIdx = 0
+		for j, opt := range f.Options {
+			if opt == f.ChoiceDefault {
+				w.choiceIdx = j
+				break
+			}
+		}
 	}
 }
 
