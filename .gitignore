@@ -17,3 +17,6 @@
 .idea/
 *.swp
 .DS_Store
+
+# Go Binary
+gonix
