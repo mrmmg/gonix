@@ -37,6 +37,12 @@ fmt:
 .PHONY: lint
 lint: vet fmt
 
+# Regenerates CHANGELOG.md from git tags and commits (see cliff.toml).
+# Before tagging a release: make changelog TAG=v1.4.0
+.PHONY: changelog
+changelog:
+	git cliff $(if $(TAG),--tag $(TAG)) -o CHANGELOG.md
+
 .PHONY: install
 install: release
 	@echo "==> Installing $(BINARY) to $(BIN_DIR)"

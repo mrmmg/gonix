@@ -1,0 +1,86 @@
+# git-cliff configuration — generates CHANGELOG.md from git tags and
+# Conventional Commits (https://www.conventionalcommits.org).
+#
+#   git cliff -o CHANGELOG.md                        # regenerate the whole file
+#   git cliff --unreleased --tag vX.Y.Z -o CHANGELOG.md  # before tagging a release
+#
+# See https://git-cliff.org/docs/configuration
+
+[remote.github]
+owner = "mrmmg"
+repo = "gonix"
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n
+"""
+body = """
+{%- macro remote_url() -%}
+  https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
+{%- endmacro -%}
+
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first | upper_first | trim }} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))
+{%- endfor %}
+{% endfor %}\n
+"""
+footer = """
+{%- macro remote_url() -%}
+  https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
+{%- endmacro -%}
+
+{% for release in releases -%}
+  {% if release.version -%}
+    {% if release.previous.version -%}
+      [{{ release.version | trim_start_matches(pat="v") }}]: \
+        {{ self::remote_url() }}/compare/{{ release.previous.version }}...{{ release.version }}
+    {% else -%}
+      [{{ release.version | trim_start_matches(pat="v") }}]: \
+        {{ self::remote_url() }}/releases/tag/{{ release.version }}
+    {% endif -%}
+  {% else -%}
+    [Unreleased]: {{ self::remote_url() }}/compare/{{ release.previous.version }}...HEAD
+  {% endif -%}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+# Early commits predate the Conventional Commits convention; keep them and
+# classify them with the plain-English parsers below.
+filter_unconventional = false
+split_commits = false
+commit_preprocessors = [
+  { pattern = "direcotry", replace = "directory" },
+]
+# The <!-- N --> prefixes only control section order; they are stripped on render.
+commit_parsers = [
+  { message = "^feat", group = "<!-- 0 -->Added" },
+  { message = "^(Add|Initial)", group = "<!-- 0 -->Added" },
+  { message = "^(refactor|perf)", group = "<!-- 1 -->Changed" },
+  { message = "^(Drop|Rename|Version|Change|Update)", group = "<!-- 1 -->Changed" },
+  { message = "^fix", group = "<!-- 2 -->Fixed" },
+  { message = "^docs", group = "<!-- 3 -->Documentation" },
+  { message = "^(chore\\(release\\)|Merge)", skip = true },
+  { message = "^(chore|ci|build|test|style)", group = "<!-- 4 -->Maintenance" },
+  { message = ".*", group = "<!-- 4 -->Maintenance" },
+]
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+topo_order = false
+sort_commits = "oldest"
