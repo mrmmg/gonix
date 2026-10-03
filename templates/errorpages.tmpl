@@ -1,4 +1,25 @@
 # Managed by GoNix. Error pages snippet: {{ .Name }}
+{{- if .IsTemplate }}
+# Hosts using this snippet include it at server level. Every code below is
+# answered with <pages directory>/{{ .Template }}, with each occurrence of the
+# placeholder replaced by the status code (requires ngx_http_sub_module).
+# Pages directory: {{ .Directory }}
+# Template: {{ .Template }}
+# Placeholder: {{ .Placeholder }}
+
+error_page {{ .CodeList }} {{ .TemplateURI }};
+
+location = {{ .TemplateURI }} {
+    internal;
+    auth_basic off;
+    root {{ .Directory }};
+    try_files /{{ .Template }} =500;
+    types { }
+    default_type text/html;
+    sub_filter '{{ .Placeholder }}' $status;
+    sub_filter_once off;
+}
+{{- else }}
 # Hosts using this snippet include it at server level. Each code below is
 # answered with <pages directory>/<code>.html.
 # Pages directory: {{ .Directory }}
@@ -11,3 +32,4 @@ location ^~ {{ .URIPrefix }} {
     auth_basic off;
     alias {{ .Directory }}/;
 }
+{{- end }}

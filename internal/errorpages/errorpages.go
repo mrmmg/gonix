@@ -1,6 +1,8 @@
 // Package errorpages implements reusable, named error page snippets: small
-// Nginx configuration files that map HTTP error codes to static HTML pages
-// (<pages directory>/<code>.html) and are included by hosts at server level.
+// Nginx configuration files that map HTTP error codes to static HTML pages and
+// are included by hosts at server level. A snippet either serves a separate
+// <pages directory>/<code>.html per code, or one shared template file whose
+// placeholder is replaced with the status code by ngx_http_sub_module.
 package errorpages
 
 import (
@@ -18,17 +20,37 @@ import (
 	"github.com/mrmmg/gonix/templates"
 )
 
-// URIPrefix is the internal URI the error pages are served under. It is
-// deliberately unusual so it never collides with a host's own paths.
-const URIPrefix = "/__gonix_error_pages/"
+// URIPrefix and TemplateURI are the internal URIs error pages are served
+// under, in per-code and template mode respectively. They are deliberately
+// unusual so they never collide with a host's own paths.
+const (
+	URIPrefix   = "/__gonix_error_pages/"
+	TemplateURI = "/__gonix_error_page"
+)
+
+// Defaults offered when creating a template mode snippet.
+const (
+	DefaultTemplate    = "error.html"
+	DefaultPlaceholder = "ERROR_CODE_PLACEHOLDER"
+)
 
 // Snippet is a named mapping of HTTP error codes to HTML pages stored in a
 // single directory.
 type Snippet struct {
 	Name      string
-	Directory string // holds <code>.html for every code in Codes
+	Directory string // holds the page(s) for every code in Codes
 	Codes     []int
+
+	// Template, when set, switches the snippet to template mode: every code
+	// is answered with this one file in Directory, with each occurrence of
+	// Placeholder replaced by the status code. When empty, each code has
+	// its own <code>.html.
+	Template    string
+	Placeholder string
 }
+
+// IsTemplate reports whether the snippet uses a single shared template.
+func (s Snippet) IsTemplate() bool { return s.Template != "" }
 
 // Validate checks that the snippet can be rendered to safe Nginx syntax.
 func (s Snippet) Validate() error {
@@ -46,18 +68,46 @@ func (s Snippet) Validate() error {
 			return err
 		}
 	}
+	if s.IsTemplate() {
+		if err := ValidateTemplateFile(s.Template); err != nil {
+			return err
+		}
+		if err := ValidatePlaceholder(s.Placeholder); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // PagePath returns the HTML file that answers the given code.
 func (s Snippet) PagePath(code int) string {
+	if s.IsTemplate() {
+		return filepath.Join(s.Directory, s.Template)
+	}
 	return filepath.Join(s.Directory, strconv.Itoa(code)+".html")
+}
+
+// PlaceholderMissing reports whether a template mode snippet's template
+// exists but does not contain its placeholder, so no code would be shown.
+func (s Snippet) PlaceholderMissing() bool {
+	if !s.IsTemplate() {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(s.Directory, s.Template))
+	return err == nil && !bytes.Contains(data, []byte(s.Placeholder))
 }
 
 // MissingPages lists the HTML files this snippet refers to that do not
 // exist on disk. Nginx accepts the configuration regardless, but a missing
 // page makes it fall back to its built-in error page.
 func (s Snippet) MissingPages() []string {
+	if s.IsTemplate() {
+		p := filepath.Join(s.Directory, s.Template)
+		if _, err := os.Stat(p); err != nil {
+			return []string{p}
+		}
+		return nil
+	}
 	var missing []string
 	for _, c := range s.Codes {
 		p := s.PagePath(c)
@@ -84,8 +134,37 @@ func ValidateDirectory(dir string) error {
 	if !filepath.IsAbs(dir) {
 		return fmt.Errorf("pages directory %q must be an absolute path", dir)
 	}
+	if filepath.Clean(dir) == "/" {
+		return fmt.Errorf("pages directory must not be the filesystem root")
+	}
 	if strings.ContainsAny(dir, " \t\n;{}\"'$#") {
 		return fmt.Errorf("pages directory %q must not contain spaces or any of ; { } \" ' $ #", dir)
+	}
+	return nil
+}
+
+// ValidateTemplateFile checks that name is a plain file name inside the
+// pages directory, e.g. "error.html".
+func ValidateTemplateFile(name string) error {
+	if name == "" {
+		return fmt.Errorf("template file name must not be empty")
+	}
+	if strings.ContainsAny(name, "/\\ \t\n;{}\"'$#") || name == "." || name == ".." {
+		return fmt.Errorf("template file %q must be a plain file name (e.g. error.html) without spaces or any of / ; { } \" ' $ #", name)
+	}
+	return nil
+}
+
+// ValidatePlaceholder checks that p can be written into a single-quoted
+// sub_filter string verbatim.
+func ValidatePlaceholder(p string) error {
+	if p == "" {
+		return fmt.Errorf("placeholder must not be empty")
+	}
+	for _, r := range p {
+		if r < 0x20 || r == 0x7f || r == '\'' || r == '"' || r == '\\' || r == '$' {
+			return fmt.Errorf("placeholder %q must not contain quotes, backslashes, $ or control characters", p)
+		}
 	}
 	return nil
 }
@@ -126,8 +205,11 @@ func FormatCodes(codes []int) string {
 }
 
 var (
-	reErrorPage = regexp.MustCompile(`(?m)^\s*error_page\s+(\d+)\s`)
+	reErrorPage = regexp.MustCompile(`(?m)^\s*error_page\s+([\d\s]+?)\s+/`)
 	reAlias     = regexp.MustCompile(`(?m)^\s*alias\s+([^;]+);`)
+	reRoot      = regexp.MustCompile(`(?m)^\s*root\s+([^;]+);`)
+	reTryFiles  = regexp.MustCompile(`(?m)^\s*try_files\s+/(\S+)\s`)
+	reSubFilter = regexp.MustCompile(`(?m)^\s*sub_filter\s+'([^']*)'\s+\$status\s*;`)
 )
 
 // Store manages snippet files under a single directory, each named
@@ -211,12 +293,22 @@ func (s *Store) Get(name string) (Snippet, error) {
 // Parse reconstructs a Snippet from content produced by Render.
 func Parse(name, content string) Snippet {
 	sn := Snippet{Name: name}
-	if m := reAlias.FindStringSubmatch(content); m != nil {
+	if m := reSubFilter.FindStringSubmatch(content); m != nil {
+		sn.Placeholder = m[1]
+		if m := reTryFiles.FindStringSubmatch(content); m != nil {
+			sn.Template = m[1]
+		}
+		if m := reRoot.FindStringSubmatch(content); m != nil {
+			sn.Directory = strings.TrimSuffix(strings.TrimSpace(m[1]), "/")
+		}
+	} else if m := reAlias.FindStringSubmatch(content); m != nil {
 		sn.Directory = strings.TrimSuffix(strings.TrimSpace(m[1]), "/")
 	}
 	for _, m := range reErrorPage.FindAllStringSubmatch(content, -1) {
-		if c, err := strconv.Atoi(m[1]); err == nil {
-			sn.Codes = append(sn.Codes, c)
+		for _, f := range strings.Fields(m[1]) {
+			if c, err := strconv.Atoi(f); err == nil {
+				sn.Codes = append(sn.Codes, c)
+			}
 		}
 	}
 	return sn
@@ -229,8 +321,10 @@ func (s *Store) Render(sn Snippet) (string, error) {
 	}
 	view := struct {
 		Snippet
-		URIPrefix string
-	}{sn, URIPrefix}
+		URIPrefix   string
+		TemplateURI string
+		CodeList    string
+	}{sn, URIPrefix, TemplateURI, strings.ReplaceAll(FormatCodes(sn.Codes), ",", "")}
 	view.Directory = strings.TrimSuffix(sn.Directory, "/")
 
 	var buf bytes.Buffer

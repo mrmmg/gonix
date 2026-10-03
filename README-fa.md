@@ -472,11 +472,16 @@ Debian/Ubuntu، `http` در Arch و `nginx` در RHEL) — یا اگر `access_l
 
 یک Error Pages snippet، یک snippet نام‌گذاری‌شده و قابل‌استفاده‌ی مجدد Nginx است که کدهای خطای
 انتخاب‌شده‌ی HTTP را با صفحه‌های HTML استاتیک خودتان جواب می‌دهد. هر snippet **یک** مسیر برای
-صفحه‌ها نگه می‌دارد که برای هر کد یک فایل با نام `<code>.html` (مثلاً `502.html`) در آن قرار دارد.
+صفحه‌ها نگه می‌دارد و یکی از این دو حالت را دارد:
+
+- **صفحه‌ی جدا برای هر کد** — برای هر کد یک فایل با نام `<code>.html` (مثلاً `502.html`).
+- **یک template مشترک** — یک فایل (مثلاً `error.html`) که هر جای placeholder در آن (پیش‌فرض
+  `ERROR_CODE_PLACEHOLDER`) با کد وضعیت جایگزین می‌شود.
+
 ساخت و ویرایش snippetها از **Main Menu → Error Pages** انجام می‌شود؛ مسیر پیش‌فرض پیشنهادی،
 مقدار `error_pages.pages_directory` در `/etc/gonix/gonix.yaml` است (`/var/www/html/error_pages`).
 
-یک snippet با نام `default` که 502 و 504 را پوشش می‌دهد، در
+در حالت صفحه‌ی جدا، یک snippet با نام `default` که 502 و 504 را پوشش می‌دهد، در
 `/etc/nginx/snippets/gonix-error-pages-default.conf` نوشته می‌شود:
 
 ```nginx
@@ -490,7 +495,30 @@ location ^~ /__gonix_error_pages/ {
 }
 ```
 
-انتخاب آن برای یک هاست (در **Add New Host** یا منوی **Error Pages** هر هاست) فقط یک خط در سطح
+در حالت template، یک snippet با نام `branded` در
+`/etc/nginx/snippets/gonix-error-pages-branded.conf` نوشته می‌شود:
+
+```nginx
+error_page 400 401 403 404 413 429 500 502 503 504 /__gonix_error_page;
+
+location = /__gonix_error_page {
+    internal;
+    auth_basic off;
+    root /var/www/html/error_pages;
+    try_files /error.html =500;
+    types { }
+    default_type text/html;
+    sub_filter 'ERROR_CODE_PLACEHOLDER' $status;
+    sub_filter_once off;
+}
+```
+
+متغیر `$status` کد خطای اصلی را نگه می‌دارد؛ پس یک location همه‌ی کدها را سرو می‌کند و پاسخ هم
+همان status را حفظ می‌کند (مثلاً 502). حالت template نیاز دارد Nginx با `ngx_http_sub_module`
+build شده باشد (`nginx -V 2>&1 | grep -o http_sub_module`). در غیر این صورت `nginx -t` شکست
+می‌خورد و GoNix تغییر را برمی‌گرداند. اگر فایل template شامل placeholder نباشد، GoNix هشدار می‌دهد.
+
+انتخاب یک snippet برای یک هاست (در **Add New Host** یا منوی **Error Pages** هر هاست) فقط یک خط در سطح
 server اضافه می‌کند:
 
 ```nginx
@@ -505,7 +533,7 @@ include /etc/nginx/snippets/gonix-error-pages-default.conf;
   فایل‌های جانبی باید داخل خود HTML باشند (CSS در `<style>` و تصاویر به‌صورت `data:` URI).
 - فقط خطاهایی که خود Nginx برمی‌گرداند جایگزین می‌شوند؛ مثلاً 502/504 وقتی upstream پایین یا کند
   است. پاسخ‌های خطایی که خود برنامه‌ی upstream تولید می‌کند، بدون تغییر عبور می‌کنند.
-- نبودن فایل `<code>.html` پیکربندی را خراب نمی‌کند؛ GoNix درباره‌ی آن هشدار می‌دهد و وضعیت هر
+- نبودن فایل صفحه پیکربندی را خراب نمی‌کند؛ GoNix درباره‌ی آن هشدار می‌دهد و وضعیت هر
   صفحه را در صفحه‌ی snippet نشان می‌دهد.
 - هاستی که **غیرفعال** (disable) شده، اصلاً server block ندارد؛ بنابراین درخواست‌هایش به
   default server در Nginx می‌رسد، نه به صفحه‌های خطای آن هاست.

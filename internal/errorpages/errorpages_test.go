@@ -170,3 +170,96 @@ func TestServiceDeleteRefusesWhileInUse(t *testing.T) {
 		t.Error("snippet was deleted while in use")
 	}
 }
+
+func TestTemplateModeRenderParseRoundTrip(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	sn := Snippet{
+		Name: "branded", Directory: "/var/www/html/error_pages", Codes: []int{404, 502, 503},
+		Template: "error.html", Placeholder: "ERROR_CODE_PLACEHOLDER",
+	}
+	out, err := store.Render(sn)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	for _, want := range []string{
+		"error_page 404 502 503 /__gonix_error_page;",
+		"location = /__gonix_error_page {",
+		"internal;",
+		"auth_basic off;",
+		"root /var/www/html/error_pages;",
+		"try_files /error.html =500;",
+		"sub_filter 'ERROR_CODE_PLACEHOLDER' $status;",
+		"sub_filter_once off;",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("rendered snippet missing %q\n--- output ---\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "alias") {
+		t.Errorf("template mode must not use alias:\n%s", out)
+	}
+
+	if got := Parse("branded", out); !reflect.DeepEqual(got, sn) {
+		t.Errorf("Parse = %+v, want %+v", got, sn)
+	}
+}
+
+func TestTemplateModeValidation(t *testing.T) {
+	base := Snippet{Name: "x", Directory: "/srv/errors", Codes: []int{502}, Template: "error.html", Placeholder: "CODE"}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, bad := range []string{"../error.html", "sub/error.html", "a b.html", "x;y.html", ".."} {
+		sn := base
+		sn.Template = bad
+		if err := sn.Validate(); err == nil {
+			t.Errorf("template %q: expected error", bad)
+		}
+	}
+	for _, bad := range []string{"", "it's", `a"b`, `a\b`, "$status", "a\nb"} {
+		sn := base
+		sn.Placeholder = bad
+		if err := sn.Validate(); err == nil {
+			t.Errorf("placeholder %q: expected error", bad)
+		}
+	}
+	for _, good := range []string{"{{code}}", "%CODE%", "ERROR CODE"} {
+		sn := base
+		sn.Placeholder = good
+		if err := sn.Validate(); err != nil {
+			t.Errorf("placeholder %q: unexpected error %v", good, err)
+		}
+	}
+}
+
+func TestTemplateModeMissingPagesAndPlaceholder(t *testing.T) {
+	dir := t.TempDir()
+	sn := Snippet{Name: "x", Directory: dir, Codes: []int{404, 502}, Template: "error.html", Placeholder: "CODE_HERE"}
+
+	if missing := sn.MissingPages(); len(missing) != 1 || missing[0] != filepath.Join(dir, "error.html") {
+		t.Errorf("MissingPages = %v, want only the template", missing)
+	}
+	if sn.PlaceholderMissing() {
+		t.Error("PlaceholderMissing must be false while the template does not exist")
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "error.html"), []byte("<h1>oops</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if len(sn.MissingPages()) != 0 {
+		t.Errorf("MissingPages = %v, want none", sn.MissingPages())
+	}
+	if !sn.PlaceholderMissing() {
+		t.Error("expected PlaceholderMissing for a template without the placeholder")
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "error.html"), []byte("<h1>CODE_HERE</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if sn.PlaceholderMissing() {
+		t.Error("unexpected PlaceholderMissing")
+	}
+}

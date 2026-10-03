@@ -462,12 +462,17 @@ Without this, Nginx answers authenticated requests with **500** and logs
 ## Error Pages
 
 An error pages snippet is a named, reusable Nginx snippet that answers selected HTTP error codes
-with your own static HTML pages. Each snippet stores **one** pages directory, holding one file
-per code named `<code>.html` (e.g. `502.html`). Create and edit snippets from **Main Menu →
-Error Pages**; the default directory offered is `error_pages.pages_directory` in
-`/etc/gonix/gonix.yaml` (`/var/www/html/error_pages`).
+with your own static HTML pages. Each snippet stores **one** pages directory and uses one of two
+modes:
 
-A snippet named `default` handling 502 and 504 is written to
+- **Separate page per code** — one file per code named `<code>.html` (e.g. `502.html`).
+- **Single template** — one shared file (e.g. `error.html`) in which every occurrence of a
+  placeholder (default `ERROR_CODE_PLACEHOLDER`) is replaced with the status code.
+
+Create and edit snippets from **Main Menu → Error Pages**; the default directory offered is
+`error_pages.pages_directory` in `/etc/gonix/gonix.yaml` (`/var/www/html/error_pages`).
+
+In per-code mode, a snippet named `default` handling 502 and 504 is written to
 `/etc/nginx/snippets/gonix-error-pages-default.conf`:
 
 ```nginx
@@ -481,7 +486,31 @@ location ^~ /__gonix_error_pages/ {
 }
 ```
 
-Choosing it for a host (in **Add New Host**, or a host's **Error Pages** menu) adds a single line
+In template mode, a snippet named `branded` is written to
+`/etc/nginx/snippets/gonix-error-pages-branded.conf`:
+
+```nginx
+error_page 400 401 403 404 413 429 500 502 503 504 /__gonix_error_page;
+
+location = /__gonix_error_page {
+    internal;
+    auth_basic off;
+    root /var/www/html/error_pages;
+    try_files /error.html =500;
+    types { }
+    default_type text/html;
+    sub_filter 'ERROR_CODE_PLACEHOLDER' $status;
+    sub_filter_once off;
+}
+```
+
+`$status` holds the original error code, so a single location serves every code, and the
+response keeps that status (e.g. 502). Template mode requires Nginx built with
+`ngx_http_sub_module` (`nginx -V 2>&1 | grep -o http_sub_module`). Without it, `nginx -t` fails
+and GoNix rolls the change back. GoNix warns when the template file does not contain the
+placeholder.
+
+Choosing a snippet for a host (in **Add New Host**, or a host's **Error Pages** menu) adds a single line
 at server level:
 
 ```nginx
@@ -496,7 +525,7 @@ include /etc/nginx/snippets/gonix-error-pages-default.conf;
   must be inlined (CSS in `<style>`, images as `data:` URIs).
 - Only errors Nginx itself returns are replaced, e.g. 502/504 when the upstream is down or slow.
   Error responses produced by the upstream application pass through unchanged.
-- A missing `<code>.html` does not break the configuration; GoNix warns about it and shows each
+- A missing page file does not break the configuration; GoNix warns about it and shows each
   page's status on the snippet's screen.
 - A **disabled** host has no server block at all, so its requests are handled by Nginx's default
   server, not by its error pages.

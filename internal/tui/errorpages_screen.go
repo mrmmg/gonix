@@ -33,7 +33,11 @@ func (s *errorPagesScreen) reload() {
 	items := make([]menuItem, 0, len(snippets)+1)
 	items = append(items, menuItem{title: "+ Create Error Pages Snippet"})
 	for _, sn := range snippets {
-		items = append(items, menuItem{title: sn.Name, desc: "codes " + errorpages.FormatCodes(sn.Codes) + " → " + sn.Directory})
+		target := sn.Directory
+		if sn.IsTemplate() {
+			target = sn.PagePath(0) + " (template)"
+		}
+		items = append(items, menuItem{title: sn.Name, desc: "codes " + errorpages.FormatCodes(sn.Codes) + " → " + target})
 	}
 	s.menu = newSimpleMenu(items)
 }
@@ -71,12 +75,24 @@ func (s *errorPagesScreen) View(width, height int) string {
 	return renderFrame(width, height, "GONIX", body, help)
 }
 
+const (
+	modePerCode  = "Separate page per code (<code>.html)"
+	modeTemplate = "Single template, code injected via sub_filter"
+
+	perCodeCodesDefault  = "502, 503, 504"
+	templateCodesDefault = "400, 401, 403, 404, 413, 429, 500, 502, 503, 504"
+)
+
+func isTemplateMode(v map[string]string) bool { return v["mode"] == modeTemplate }
+
 // newErrorPagesWizard creates a new snippet when existing is nil, otherwise
-// edits existing (its name is kept; only directory and codes are asked).
+// edits existing (its name is kept; everything else is asked again).
 func newErrorPagesWizard(deps Deps, existing *errorpages.Snippet) *wizardScreen {
 	title := "Create Error Pages Snippet"
 	dirDefault := deps.Config.ErrorPages.PagesDirectory
-	codesDefault := "502, 503, 504"
+	modeDefault := modePerCode
+	perCodeCodes, templateCodes := perCodeCodesDefault, templateCodesDefault
+	templateDefault, placeholderDefault := errorpages.DefaultTemplate, errorpages.DefaultPlaceholder
 	var fields []wizardField
 	if existing == nil {
 		fields = append(fields, wizardField{
@@ -95,17 +111,43 @@ func newErrorPagesWizard(deps Deps, existing *errorpages.Snippet) *wizardScreen 
 	} else {
 		title = "Edit Error Pages — " + existing.Name
 		dirDefault = existing.Directory
-		codesDefault = errorpages.FormatCodes(existing.Codes)
+		if existing.IsTemplate() {
+			modeDefault = modeTemplate
+			templateCodes = errorpages.FormatCodes(existing.Codes)
+			templateDefault, placeholderDefault = existing.Template, existing.Placeholder
+		} else {
+			perCodeCodes = errorpages.FormatCodes(existing.Codes)
+		}
 	}
+	validateCodes := func(v string) error { _, err := errorpages.ParseCodes(v); return err }
 	fields = append(fields,
 		wizardField{
-			Key: "directory", Label: "Directory holding the HTML pages (<code>.html, e.g. 502.html):", Kind: fieldText,
+			Key: "mode", Label: "How are pages organized?", Kind: fieldChoice,
+			Options: []string{modePerCode, modeTemplate}, ChoiceDefault: modeDefault,
+		},
+		wizardField{
+			Key: "directory", Label: "Directory holding the HTML page(s):", Kind: fieldText,
 			Default: dirDefault, Validate: errorpages.ValidateDirectory,
 		},
 		wizardField{
+			Key: "template", Label: "Template file name inside that directory:", Kind: fieldText,
+			Placeholder: errorpages.DefaultTemplate, Default: templateDefault,
+			Validate: errorpages.ValidateTemplateFile, ShowIf: isTemplateMode,
+		},
+		wizardField{
+			Key: "placeholder", Label: "Placeholder text replaced with the status code:", Kind: fieldText,
+			Placeholder: errorpages.DefaultPlaceholder, Default: placeholderDefault,
+			Validate: errorpages.ValidatePlaceholder, ShowIf: isTemplateMode,
+		},
+		wizardField{
+			Key: "codes", Label: "Error codes to handle (comma separated; one <code>.html each):", Kind: fieldText,
+			Placeholder: perCodeCodesDefault, Default: perCodeCodes, Validate: validateCodes,
+			ShowIf: func(v map[string]string) bool { return !isTemplateMode(v) },
+		},
+		wizardField{
 			Key: "codes", Label: "Error codes to handle (comma separated):", Kind: fieldText,
-			Placeholder: "502, 503, 504", Default: codesDefault,
-			Validate: func(v string) error { _, err := errorpages.ParseCodes(v); return err },
+			Placeholder: templateCodesDefault, Default: templateCodes, Validate: validateCodes,
+			ShowIf: isTemplateMode,
 		},
 	)
 
@@ -118,6 +160,9 @@ func newErrorPagesWizard(deps Deps, existing *errorpages.Snippet) *wizardScreen 
 	return newWizard(title, fields, func(v map[string]string) (screen, tea.Cmd) {
 		codes, _ := errorpages.ParseCodes(v["codes"])
 		sn := errorpages.Snippet{Directory: strings.TrimSuffix(v["directory"], "/"), Codes: codes}
+		if isTemplateMode(v) {
+			sn.Template, sn.Placeholder = v["template"], v["placeholder"]
+		}
 		var err error
 		if existing == nil {
 			sn.Name = v["name"]
@@ -136,6 +181,10 @@ func newErrorPagesWizard(deps Deps, existing *errorpages.Snippet) *wizardScreen 
 		if missing := sn.MissingPages(); len(missing) > 0 {
 			msg += "\n\nWarning: these pages do not exist yet, Nginx will show its default page for them:\n  " +
 				strings.Join(missing, "\n  ")
+		}
+		if sn.PlaceholderMissing() {
+			msg += fmt.Sprintf("\n\nWarning: %s does not contain the placeholder %q, so the status code will not appear in the page.",
+				sn.PagePath(0), sn.Placeholder)
 		}
 		return newResultScreen(deps, title, true, msg, newErrorPagesDetailScreen(deps, sn.Name)), nil
 	}, func() (screen, tea.Cmd) { return back(), nil })
@@ -166,7 +215,7 @@ func newErrorPagesDetailScreen(deps Deps, name string) *errorPagesDetailScreen {
 	}
 	s.sn = sn
 	s.menu = newSimpleMenu([]menuItem{
-		{title: "Edit Directory / Codes"},
+		{title: "Edit Snippet"},
 		{title: "View Snippet"},
 		{title: "View Hosts Using This Snippet"},
 		{title: "Delete Snippet"},
@@ -234,14 +283,28 @@ func (s *errorPagesDetailScreen) View(width, height int) string {
 	} else {
 		body += "File:      " + s.deps.ErrorPages.Store.Path(s.name) + "\n"
 		body += "Directory: " + s.sn.Directory + "\n"
-		body += "Pages:\n"
-		for _, c := range s.sn.Codes {
-			p := s.sn.PagePath(c)
+		if s.sn.IsTemplate() {
+			p := s.sn.PagePath(0)
 			status := enabledDot + " " + p
-			if _, err := os.Stat(p); err != nil {
+			switch {
+			case len(s.sn.MissingPages()) > 0:
 				status = disabledDot + " " + p + mutedStyle.Render("  (missing)")
+			case s.sn.PlaceholderMissing():
+				status = disabledDot + " " + p + mutedStyle.Render("  (placeholder not found)")
 			}
-			body += fmt.Sprintf("  %d  %s\n", c, status)
+			body += "Template:  " + status + "\n"
+			body += "Placeholder: " + s.sn.Placeholder + "\n"
+			body += "Codes:     " + errorpages.FormatCodes(s.sn.Codes) + "\n"
+		} else {
+			body += "Pages:\n"
+			for _, c := range s.sn.Codes {
+				p := s.sn.PagePath(c)
+				status := enabledDot + " " + p
+				if _, err := os.Stat(p); err != nil {
+					status = disabledDot + " " + p + mutedStyle.Render("  (missing)")
+				}
+				body += fmt.Sprintf("  %d  %s\n", c, status)
+			}
 		}
 		body += "\n"
 	}
