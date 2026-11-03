@@ -40,6 +40,7 @@
 - [پشتیبان‌گیری (Backups)](#پشتیبانگیری-backups)
 - [توسعه](#توسعه)
 - [امکانات آینده](#امکانات-آینده)
+- [Star History](#star-history)
 - [مجوز](#مجوز)
 
 ایده‌ی این پروژه از [Nginx Proxy Manager](https://nginxproxymanager.com/) گرفته شده، ولی مسیر
@@ -598,6 +599,13 @@ timestamp در `/etc/gonix/backups/` می‌گذارد. بعد از نوشتن،
 - درون‌ریزی/دیف‌گیری پیکربندی‌های دلخواه موجود Nginx
 - تاریخچه‌ی پیکربندی مبتنی بر Git و rollback
 - پشتیبانی از چند نمونه (instance) Nginx
+
+## Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=mrmmg/gonix&type=Date&theme=dark" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=mrmmg/gonix&type=Date" />
+</picture>
 
 ## مجوز
 

@@ -57,6 +57,7 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
 - [Backups](#backups)
 - [Development](#development)
 - [Future Features](#future-features)
+- [Star History](#star-history)
 - [License](#license)
 
 ## Installation
@@ -601,6 +602,13 @@ Deliberately not implemented yet, but designed for:
 - Importing/diffing arbitrary existing Nginx configuration
 - Git-based configuration history and rollback
 - Multiple Nginx instance support
+
+## Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=mrmmg/gonix&type=Date&theme=dark" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=mrmmg/gonix&type=Date" />
+</picture>
 
 ## License
 
