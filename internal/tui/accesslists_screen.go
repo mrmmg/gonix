@@ -62,7 +62,7 @@ func (s *accessListsScreen) View(width, height int) string {
 	if s.err != "" {
 		body += errorBoxStyle.Render(s.err)
 	} else {
-		body += s.menu.View()
+		body += s.menu.ViewFit(body, height)
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
@@ -204,7 +204,8 @@ func (s *accessListDetailScreen) View(width, height int) string {
 			body += u
 		}
 	}
-	body += "\n\n" + s.menu.View()
+	body += "\n\n"
+	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }

@@ -60,7 +60,7 @@ func (s *rateLimitsScreen) View(width, height int) string {
 	if s.err != "" {
 		body += errorBoxStyle.Render(s.err)
 	} else {
-		body += s.menu.View()
+		body += s.menu.ViewFit(body, height)
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
@@ -265,7 +265,7 @@ func (s *rateLimitDetailScreen) View(width, height int) string {
 		body += "Zone:  " + s.deps.RateLimits.ZonePath(s.name) + "\n"
 		body += "Apply: " + s.deps.RateLimits.ApplyPath(s.name) + "\n\n"
 	}
-	body += s.menu.View()
+	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }

@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // menuItem is a single selectable row in a simpleMenu.
@@ -70,6 +72,43 @@ func (m *simpleMenu) View() string {
 		}
 		b.WriteString(style.Render(line))
 		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// frameChrome is how many terminal rows renderFrame uses around the body
+// (title bar, borders, help line).
+const frameChrome = 6
+
+// ViewFit renders the menu below above (the body text already rendered on
+// the screen) within a terminal of the given height, scrolling to keep the
+// cursor visible when the items do not all fit.
+func (m *simpleMenu) ViewFit(above string, height int) string {
+	rows := height - frameChrome - lipgloss.Height(above)
+	if above == "" {
+		rows++
+	}
+	if rows >= len(m.items) || rows < 3 {
+		return m.View()
+	}
+	rows -= 2 // the "more" indicators
+	start := m.cursor - rows/2
+	if start < 0 {
+		start = 0
+	}
+	if start+rows > len(m.items) {
+		start = len(m.items) - rows
+	}
+	var b strings.Builder
+	if start > 0 {
+		b.WriteString(mutedStyle.Render(fmt.Sprintf("  ↑ %d more", start)) + "\n")
+	} else {
+		b.WriteString("\n")
+	}
+	window := &simpleMenu{items: m.items[start : start+rows], cursor: m.cursor - start}
+	b.WriteString(window.View())
+	if rest := len(m.items) - start - rows; rest > 0 {
+		b.WriteString(mutedStyle.Render(fmt.Sprintf("  ↓ %d more", rest)) + "\n")
 	}
 	return b.String()
 }

@@ -103,7 +103,7 @@ func (s *hostsListScreen) View(width, height int) string {
 	if s.loadErr != "" {
 		body += errorBoxStyle.Render(s.loadErr)
 	} else {
-		body += s.menu.View()
+		body += s.menu.ViewFit(body, height)
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Manage"}, {"r", "Refresh"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)

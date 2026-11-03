@@ -326,7 +326,7 @@ func (s *hostDetailScreen) View(width, height int) string {
 	}
 	body := headerStyle.Render("Host: "+s.host.ServerName) + "\n"
 	body += dot + " " + state + "\n\n"
-	body += s.menu.View()
+	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }

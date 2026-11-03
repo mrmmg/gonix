@@ -111,10 +111,11 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 }
 
 func (s *mainMenu) View(width, height int) string {
-	body := headerStyle.Render("Main Menu") + "\n" + s.menu.View()
+	body := headerStyle.Render("Main Menu") + "\n"
 	if s.warning != "" {
-		body += "\n" + dangerStyle.Render("⚠ "+s.warning)
+		body += dangerStyle.Render("⚠ "+s.warning) + "\n"
 	}
+	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"q", "Quit"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }

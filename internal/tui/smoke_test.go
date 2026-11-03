@@ -150,3 +150,31 @@ func TestTitleShowsInstance(t *testing.T) {
 		t.Error("title bar does not show the instance")
 	}
 }
+
+// Long menus scroll instead of pushing the frame past a small terminal.
+func TestLongMenusFitSmallTerminals(t *testing.T) {
+	deps := testDeps(t)
+	createTestHost(t, deps, "example.com")
+	listed, _ := deps.Manager.ListHosts()
+	detail := newHostDetailScreen(deps, listed[0])
+	main := newMainMenu(deps)
+	for _, s := range []struct {
+		name string
+		menu *simpleMenu
+		view func() string
+	}{
+		{"host detail", detail.menu, func() string { return detail.View(80, 24) }},
+		{"main menu", main.menu, func() string { return main.View(80, 24) }},
+	} {
+		for _, cursor := range []int{0, len(s.menu.items) / 2, len(s.menu.items) - 1} {
+			s.menu.cursor = cursor
+			view := s.view()
+			if lines := strings.Count(view, "\n") + 1; lines > 24 {
+				t.Errorf("%s with cursor %d renders %d lines on a 24-line terminal", s.name, cursor, lines)
+			}
+			if !strings.Contains(view, "▸ "+strings.TrimSpace(s.menu.items[cursor].title)) {
+				t.Errorf("%s: selected item %q not visible", s.name, s.menu.items[cursor].title)
+			}
+		}
+	}
+}

@@ -72,7 +72,7 @@ func (s *ipListsScreen) View(width, height int) string {
 	if s.err != "" {
 		body += errorBoxStyle.Render(s.err)
 	} else {
-		body += s.menu.View()
+		body += s.menu.ViewFit(body, height)
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
@@ -265,7 +265,7 @@ func (s *ipListDetailScreen) View(width, height int) string {
 		}
 		body += "\n"
 	}
-	body += s.menu.View()
+	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }

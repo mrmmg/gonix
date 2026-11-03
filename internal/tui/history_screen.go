@@ -115,7 +115,7 @@ func (s *historyScreen) View(width, height int) string {
 	if s.err != "" {
 		body += errorBoxStyle.Render(s.err)
 	} else {
-		body += s.menu.View()
+		body += s.menu.ViewFit(body, height)
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Show diff"}, {"r", "Restore"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)

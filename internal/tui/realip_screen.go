@@ -142,7 +142,8 @@ func (s *realIPScreen) View(width, height int) string {
 	if w := includeWarning(s.deps); w != "" {
 		body += errorBoxStyle.Render(strings.TrimSpace(w)) + "\n"
 	}
-	body += "\n" + s.menu.View()
+	body += "\n"
+	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }
