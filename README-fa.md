@@ -2,14 +2,12 @@
 
 # GoNix - گونیکس
 
+[![Latest Release](https://img.shields.io/github/v/release/mrmmg/gonix?label=release)](https://github.com/mrmmg/gonix/releases/latest)
+[![Binary Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmrmmg%2Fgonix%2Fbadges%2Fdownloads.json)](https://github.com/mrmmg/gonix/releases)
+[![License](https://img.shields.io/github/license/mrmmg/gonix)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/mrmmg/gonix)](go.mod)
+
 *[English](README.md)*
-
-پیش نمایش ویدیویی:
-<p align="center">
-
-https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
-
-</p>
 
 **GoNix** یعنی **Go** + **Nginx** — یک **رابط کاربری متنی (TUI)** پیشرفته و تعاملی برای
 **مدیریت Nginx** روی لینوکس که با Go نوشته شده.
@@ -42,6 +40,7 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
 - [پشتیبان‌گیری (Backups)](#پشتیبانگیری-backups)
 - [توسعه](#توسعه)
 - [امکانات آینده](#امکانات-آینده)
+- [مجوز](#مجوز)
 
 ایده‌ی این پروژه از [Nginx Proxy Manager](https://nginxproxymanager.com/) گرفته شده، ولی مسیر
 متفاوتی رفته: به‌جای اینکه Nginx را پشت یک دیتابیس و یک فرمت پیکربندی اختصاصی قایم کند، GoNix
@@ -50,6 +49,14 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
 سینتکس استاندارد و ساده‌ی Nginx را ببینید — هیچ‌چیز مبهم یا اختصاصی در کار نیست.
 
 باینری کامپایل‌شده هم اسمش `gonix` است.
+
+**پیش‌نمایش ویدیویی:**
+
+<p align="center">
+
+https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
+
+</p>
 
 ## نصب
 
@@ -79,6 +86,9 @@ curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash 
 
 اگر از قبل دسترسی `sudo` کش‌شده ندارید، نصب‌کننده هر وقت لازم شد در `/opt`، `/etc` یا
 `/usr/local/bin` بنویسد، رمز عبورتان را می‌پرسد.
+
+باینری‌های آماده، فایل `checksums.txt` و `gonix.yaml` پیش‌فرض در هر
+[GitHub Release](https://github.com/mrmmg/gonix/releases) موجودند.
 
 ### معماری‌های پشتیبانی‌شده
 
@@ -136,8 +146,13 @@ curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash 
 - **بازرسی گواهی** — تاریخ انقضا (هم خوانا برای انسان، هم دقیق)، صادرکننده، subject، SANها،
   اثرانگشت SHA-256، تطابق کلید/گواهی و اعتبارسنجی زنجیره، همه با `crypto/x509` خود Go (بدون
   نیاز به صدازدن `openssl` به‌عنوان زیرفرآیند).
+- **گواهی Wildcard** — صدور و تمدید گواهی `*.domain.com` با `certbot` و چالش DNS-01 روی
+  Cloudflare، کاملاً خودکار از داخل TUI (بخش
+  [دریافت گواهی Wildcard (Certbot)](#دریافت-گواهی-wildcard-certbot) را ببینید).
 - **Access List (احراز هویت پایه‌ی HTTP)** — فهرست‌های کاربریِ قابل‌استفاده‌ی مجدد و
   bcrypt-hash‌شده در قالب `htpasswd` که می‌توانید روی یک هاست یا یک location خاص اعمالشان کنید.
+- **صفحه‌های خطا** — snippetهای نام‌دار و قابل‌استفاده‌ی مجدد که کدهای خطای HTTP (مثل 502، 503،
+  504) را به صفحه‌های HTML خودتان نگاشت می‌کنند و با یک انتخاب در منو به هر هاست اضافه می‌شوند.
 - **لاگ‌های access/error** — به‌ازای هر هاست جدا فعال/غیرفعال می‌شوند، با logrotate که موقع
   نصب خودش پیکربندی می‌شود.
 - **لاگ حسابرسی (audit log)** — هر تغییری که از طریق برنامه انجام شود، با زمان، کاربر لینوکس،
@@ -154,7 +169,7 @@ curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash 
 ## پیش‌نیازها
 
 - لینوکس (از `systemctl`، `/proc` و مسیرهای استاندارد Nginx استفاده می‌کند)
-- [Go](https://go.dev) نسخه‌ی ۱.۲۴ یا جدیدتر (اگر می‌خواهید از سورس بسازید)
+- [Go](https://go.dev) نسخه‌ی ۱.۲۶ یا جدیدتر (اگر می‌خواهید از سورس بسازید؛ `go.mod` را ببینید)
 - Nginx
 - `systemctl` (systemd)
 - اختیاری: `logrotate` (اگر نباشد، چرخش لاگ فقط با یک هشدار رد می‌شود)
@@ -315,7 +330,8 @@ gonix/
 ├── install.sh             نصب‌کننده‌ی یک‌دستوری: یک ریلیز را دانلود می‌کند، بدون نیاز به Go toolchain
 ├── Makefile               دستور `make install` از سورس می‌سازد و همان ساختار را نصب می‌کند
 ├── .github/workflows/
-│   └── release.yml        با هر push شدن تگ vX.Y.Z یک GitHub Release می‌سازد و منتشر می‌کند
+│   ├── release.yml        با هر push شدن تگ vX.Y.Z یک GitHub Release می‌سازد و منتشر می‌کند
+│   └── download-count.yml badge تعداد دانلود باینری‌ها را به‌روز می‌کند (روی branch `badges`)
 └── tests/                 (فایل‌های *_test.go کنار هر پکیج، مجموعه‌ی تست واقعی را تشکیل می‌دهند)
 ```
 
@@ -572,13 +588,17 @@ timestamp در `/etc/gonix/backups/` می‌گذارد. بعد از نوشتن،
 
 اینا عمداً هنوز پیاده‌سازی نشده‌اند، ولی معماری پروژه برایشان طراحی شده:
 
-- یکپارچه‌سازی خودکار با Let's Encrypt / Certbot و ارائه‌دهندگان DNS challenge (مثل Cloudflare)
+- ارائه‌دهندگان DNS challenge بیشتر برای گواهی Wildcard (فعلاً فقط Cloudflare پشتیبانی می‌شود)
 - فهرست‌های allow/deny بر اساس IP و محدودسازی نرخ (rate limiting)
 - هدرهای امنیتی، فشرده‌سازی و پیش‌تنظیم‌های caching
 - یکپارچه‌سازی WAF / ModSecurity
 - گروه‌های upstream، توزیع بار (load balancing) و health check
 - HTTP/3، OCSP stapling، پیش‌تنظیم‌های HSTS
-- حالت تعمیر (maintenance mode) و صفحات خطای سفارشی
+- حالت تعمیر (maintenance mode)
 - درون‌ریزی/دیف‌گیری پیکربندی‌های دلخواه موجود Nginx
 - تاریخچه‌ی پیکربندی مبتنی بر Git و rollback
 - پشتیبانی از چند نمونه (instance) Nginx
+
+## مجوز
+
+GoNix تحت [مجوز MIT](LICENSE) منتشر شده است.

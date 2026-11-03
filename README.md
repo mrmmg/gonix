@@ -2,21 +2,36 @@
 
 # GoNix
 
+[![Latest Release](https://img.shields.io/github/v/release/mrmmg/gonix?label=release)](https://github.com/mrmmg/gonix/releases/latest)
+[![Binary Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmrmmg%2Fgonix%2Fbadges%2Fdownloads.json)](https://github.com/mrmmg/gonix/releases)
+[![License](https://img.shields.io/github/license/mrmmg/gonix)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/mrmmg/gonix)](go.mod)
+
 *[فارسی](README-fa.md)*
 
-Video Preview:
+**GoNix** — the name comes from **Go** + **Nginx** — is an advanced, interactive **terminal UI
+(TUI) for managing Nginx** on Linux, written in Go.
+
+It is inspired by [Nginx Proxy Manager](https://nginxproxymanager.com/), but takes a different
+approach: instead of hiding Nginx behind a database and a proprietary configuration format,
+GoNix is a thin, safe management layer **on top of** your real, human-editable Nginx
+configuration files. You can always open `/etc/nginx/sites-available/example.com` in a text
+editor and see plain, standard Nginx syntax — nothing opaque, nothing proprietary.
+
+The compiled binary is named `gonix`.
+
+**Video preview:**
+
 <p align="center">
 
 https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
 
 </p>
 
-**GoNix** — the name comes from **Go** + **Nginx** — is an advanced, interactive **terminal UI
-(TUI) for managing Nginx** on Linux, written in Go.
-
 ## Table of Contents
 
 - [Installation](#installation)
+  - [Manual download](#manual-download)
   - [Supported architectures](#supported-architectures)
   - [What gets installed, and where](#what-gets-installed-and-where)
   - [Building and installing from source instead](#building-and-installing-from-source-instead)
@@ -42,14 +57,7 @@ https://github.com/user-attachments/assets/45f5a47a-ebe0-4b5c-a6c1-e2c971aaa8d5
 - [Backups](#backups)
 - [Development](#development)
 - [Future Features](#future-features)
-
-It is inspired by [Nginx Proxy Manager](https://nginxproxymanager.com/), but takes a different
-approach: instead of hiding Nginx behind a database and a proprietary configuration format,
-GoNix is a thin, safe management layer **on top of** your real, human-editable Nginx
-configuration files. You can always open `/etc/nginx/sites-available/example.com` in a text
-editor and see plain, standard Nginx syntax — nothing opaque, nothing proprietary.
-
-The compiled binary is named `gonix`.
+- [License](#license)
 
 ## Installation
 
@@ -78,6 +86,21 @@ previously installed, but never touches your existing configuration in `/etc/gon
 
 If you don't already have `sudo` privileges cached, the installer will prompt for your password
 when it needs to write to `/opt`, `/etc`, or `/usr/local/bin`.
+
+### Manual download
+
+Prebuilt binaries, a `checksums.txt`, and the default `gonix.yaml` are attached to every
+[GitHub Release](https://github.com/mrmmg/gonix/releases). To download and verify a binary by
+hand (replace `amd64` with `arm64` as needed):
+
+```bash
+curl -fsSLO https://github.com/mrmmg/gonix/releases/latest/download/gonix-linux-amd64
+curl -fsSLO https://github.com/mrmmg/gonix/releases/latest/download/checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+```
+
+The installer above does the same download and additionally sets up the directory layout below,
+so it is the recommended path for most users.
 
 ### Supported architectures
 
@@ -134,6 +157,9 @@ a release is created or edited by hand.
 - **Certificate inspection** — expiration (human-readable and exact), issuer, subject, SANs,
   SHA-256 fingerprint, key/cert matching, and chain verification, all using Go's `crypto/x509`
   (no `openssl` subprocess required).
+- **Wildcard certificates** — issue and renew `*.domain.com` certificates with `certbot` and a
+  Cloudflare DNS-01 challenge, fully automated from the TUI (see
+  [Get Wildcard Certificate (Certbot)](#get-wildcard-certificate-certbot)).
 - **Access Lists (HTTP Basic Auth)** — reusable, bcrypt-hashed `htpasswd`-format user lists that
   can be applied to a host or a specific location.
 - **Error pages** — reusable, named snippets mapping HTTP error codes (e.g. 502, 503, 504) to your
@@ -152,7 +178,7 @@ a release is created or edited by hand.
 ## Requirements
 
 - Linux (uses `systemctl`, `/proc`, and standard Nginx paths)
-- [Go](https://go.dev) 1.24 or newer (for building from source)
+- [Go](https://go.dev) 1.26 or newer (for building from source; see `go.mod`)
 - Nginx
 - `systemctl` (systemd)
 - Optional: `logrotate` (log rotation is skipped with a warning if absent)
@@ -312,7 +338,8 @@ gonix/
 ├── install.sh             one-command installer: downloads a release, no Go toolchain needed
 ├── Makefile               `make install` builds from source and installs the same layout
 ├── .github/workflows/
-│   └── release.yml        builds + publishes a GitHub Release on every vX.Y.Z tag push
+│   ├── release.yml        builds + publishes a GitHub Release on every vX.Y.Z tag push
+│   └── download-count.yml updates the README binary download badge (on the `badges` branch)
 └── tests/                 (package-local *_test.go files hold the actual test suite)
 ```
 
@@ -564,13 +591,17 @@ capability should be added to the appropriate `internal/*` package and exposed t
 
 Deliberately not implemented yet, but designed for:
 
-- Automatic Let's Encrypt / Certbot integration and DNS challenge providers (e.g. Cloudflare)
+- Additional DNS challenge providers for wildcard certificates (only Cloudflare is supported today)
 - IP allow/deny lists and rate limiting
 - Security headers, compression and caching presets
 - WAF / ModSecurity integration
 - Upstream groups, load balancing and health checks
 - HTTP/3, OCSP stapling, HSTS presets
-- Maintenance mode and custom error pages
+- Maintenance mode
 - Importing/diffing arbitrary existing Nginx configuration
 - Git-based configuration history and rollback
 - Multiple Nginx instance support
+
+## License
+
+GoNix is released under the [MIT License](LICENSE).

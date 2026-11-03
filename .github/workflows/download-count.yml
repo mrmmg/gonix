@@ -1,0 +1,66 @@
+name: Download Count
+
+# Sums the download counts of the gonix-linux-amd64 and gonix-linux-arm64
+# release assets across all releases and publishes the total as a Shields.io
+# endpoint JSON (downloads.json) on the orphan `badges` branch. The README
+# badge reads it via https://img.shields.io/endpoint. Checksums, config files
+# and source archives are deliberately not counted.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: download-count
+  cancel-in-progress: true
+
+jobs:
+  update:
+    name: Update download badge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Count binary downloads
+        id: count
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          total="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[].assets[] | select(.name == "gonix-linux-amd64" or .name == "gonix-linux-arm64") | .download_count' \
+            | awk '{ s += $1 } END { print s + 0 }')"
+          echo "Total binary downloads: ${total}"
+          echo "total=${total}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish downloads.json to the badges branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOTAL: ${{ steps.count.outputs.total }}
+        run: |
+          mkdir badges && cd badges
+          printf '{"schemaVersion":1,"label":"binary downloads","message":"%s","color":"blue"}\n' "$TOTAL" > downloads.json
+
+          # Skip the push when the published count is already up to date.
+          current="$(gh api "repos/${GITHUB_REPOSITORY}/contents/downloads.json?ref=badges" \
+            --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || true)"
+          if [ "$current" = "$(cat downloads.json)" ]; then
+            echo "Badge already up to date."
+            exit 0
+          fi
+
+          # A single-commit orphan branch, force-pushed, so it never accumulates history.
+          git init -q -b badges
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads.json
+          git commit -q -m "chore: update binary download count (${TOTAL})"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
+
+      # GitHub disables scheduled workflows after 60 days without repository
+      # activity. Re-enabling this workflow on every run resets that timer.
+      - name: Keep workflow enabled
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/download-count.yml/enable"
