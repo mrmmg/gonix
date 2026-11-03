@@ -234,3 +234,21 @@ func TestIPListBehavior(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveEntry(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	svc.Create(ctx, List{Name: "x", Mode: Blocklist, Entries: []string{"10.0.0.1", "10.0.0.2"}})
+	if err := svc.RemoveEntry(ctx, "x", "10.0.0.9"); err == nil {
+		t.Error("expected an error for an absent entry")
+	}
+	if err := svc.RemoveEntry(ctx, "x", "10.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RemoveEntry(ctx, "x", "10.0.0.2"); err == nil {
+		t.Error("expected the last entry to be kept")
+	}
+	if l, _ := svc.Store.Get("x"); len(l.Entries) != 1 || l.Entries[0] != "10.0.0.2" {
+		t.Errorf("entries = %v", l.Entries)
+	}
+}

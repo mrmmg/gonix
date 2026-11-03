@@ -7,11 +7,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mrmmg/gonix/internal/acme"
 	"github.com/mrmmg/gonix/internal/app"
+	"github.com/mrmmg/gonix/internal/cli"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/tui"
 )
@@ -22,8 +24,9 @@ func main() {
 		fmt.Println("gonix version " + tui.Version)
 		return
 	case len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h"):
-		printUsage()
-		return
+		os.Exit(cli.Run([]string{"help"}, os.Stdout, os.Stderr, app.Build, configPath()))
+	case cli.IsCommand(os.Args[1:]) || (len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-")):
+		os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr, app.Build, configPath()))
 	case len(os.Args) > 2 && os.Args[1] == "acme-hook":
 		// Hidden plumbing command: certbot's --manual-auth-hook/
 		// --manual-cleanup-hook invoke "gonix acme-hook auth|cleanup" as a
@@ -42,18 +45,12 @@ func main() {
 	}
 }
 
-func printUsage() {
-	fmt.Print(`gonix - an interactive terminal UI for managing Nginx
-
-Usage:
-  sudo gonix              Launch the TUI
-  gonix --version, -v     Print the installed version
-  gonix --help, -h        Show this help message
-
-Environment:
-  GONIX_CONFIG   Path to an alternate configuration file
-                 (default: ` + config.DefaultPath + `)
-`)
+// configPath is the configuration file, overridable with GONIX_CONFIG.
+func configPath() string {
+	if v := os.Getenv("GONIX_CONFIG"); v != "" {
+		return v
+	}
+	return config.DefaultPath
 }
 
 func run() error {
@@ -61,11 +58,7 @@ func run() error {
 		return fmt.Errorf("this operation requires root privileges.\nPlease run gonix with sudo:\n\n    sudo gonix")
 	}
 
-	cfgPath := config.DefaultPath
-	if v := os.Getenv("GONIX_CONFIG"); v != "" {
-		cfgPath = v
-	}
-	deps, err := app.Build(cfgPath)
+	deps, err := app.Build(configPath())
 	if err != nil {
 		return err
 	}

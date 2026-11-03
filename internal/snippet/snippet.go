@@ -31,6 +31,50 @@ type Writer struct {
 	Tester   ConfigTester
 	Reloader Reloader // may be nil; when nil, changes are validated but not reloaded
 	Audit    *audit.Logger
+	// DryRun, when set, records every change instead of making it.
+	DryRun *Plan
+}
+
+// Change is one change recorded in dry-run mode: a file write or removal,
+// or an action described by Note (e.g. enabling a host).
+type Change struct {
+	Path    string
+	Old     string // content before; "" when the file did not exist
+	New     string // content after; "" when removed
+	Existed bool
+	Removed bool
+	Note    string
+}
+
+// Plan collects the changes a dry run would have made.
+type Plan struct {
+	Changes []Change
+}
+
+// RecordFile records writing content (or removing, when content is nil)
+// at path.
+func (p *Plan) RecordFile(path string, content *string) {
+	c := Change{Path: path}
+	if data, err := os.ReadFile(path); err == nil {
+		c.Old, c.Existed = string(data), true
+	}
+	if content == nil {
+		if !c.Existed {
+			return
+		}
+		c.Removed = true
+	} else {
+		c.New = *content
+		if c.Existed && c.Old == c.New {
+			return
+		}
+	}
+	p.Changes = append(p.Changes, c)
+}
+
+// RecordNote records an action that is not a file write.
+func (p *Plan) RecordNote(note string) {
+	p.Changes = append(p.Changes, Change{Note: note})
 }
 
 // File is a single file write: Content is written to Path. A nil Content
@@ -62,6 +106,13 @@ func (w *Writer) Apply(ctx context.Context, action, target string, files ...File
 		data    []byte
 		existed bool
 	}
+	if w.DryRun != nil {
+		for _, f := range files {
+			w.DryRun.RecordFile(f.Path, f.Content)
+		}
+		return nil
+	}
+
 	var saved []previous
 	restore := func() {
 		for i := len(saved) - 1; i >= 0; i-- {

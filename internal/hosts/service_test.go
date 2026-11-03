@@ -4,11 +4,13 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mrmmg/gonix/internal/audit"
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/snippet"
 )
 
 // fakeTester lets tests control the outcome of `nginx -t` without a real
@@ -188,5 +190,37 @@ func TestCreateRedirectHost(t *testing.T) {
 	h.ServerAlias = []string{"not valid"}
 	if _, err := svc.UpdateHost(context.Background(), h); err == nil {
 		t.Error("expected UpdateHost to reject an invalid alias")
+	}
+}
+
+func TestDryRunChangesNothing(t *testing.T) {
+	svc, available, enabled := newTestService(t, true)
+	if _, err := svc.CreateHost(context.Background(), testHost("example.com")); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.ReadFile(filepath.Join(available, "example.com"))
+
+	plan := &snippet.Plan{}
+	svc.DryRun = plan
+	h := testHost("example.com")
+	h.Locations[0].Proxy.UpstreamPort = 9999
+	if _, err := svc.UpdateHost(context.Background(), h); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnableHost(context.Background(), "example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeleteHost(context.Background(), "example.com"); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(filepath.Join(available, "example.com"))
+	if string(before) != string(after) {
+		t.Error("dry run modified the host file")
+	}
+	if _, err := os.Lstat(filepath.Join(enabled, "example.com")); !os.IsNotExist(err) {
+		t.Error("dry run enabled the host")
+	}
+	if len(plan.Changes) != 4 || !strings.Contains(plan.Changes[0].New, "9999") || plan.Changes[1].Note != "enable host example.com" || !plan.Changes[3].Removed {
+		t.Errorf("changes = %+v", plan.Changes)
 	}
 }

@@ -255,6 +255,29 @@ func (s *Service) AddEntry(ctx context.Context, name, ip string) error {
 	return s.write(ctx, l, "ip_list_updated")
 }
 
+// RemoveEntry removes entry from the list called name. The last entry
+// cannot be removed; delete the list instead.
+func (s *Service) RemoveEntry(ctx context.Context, name, entry string) error {
+	l, err := s.Store.Get(name)
+	if err != nil {
+		return err
+	}
+	var kept []string
+	for _, e := range l.Entries {
+		if e != entry {
+			kept = append(kept, e)
+		}
+	}
+	if len(kept) == len(l.Entries) {
+		return fmt.Errorf("%s is not in the list %q", entry, name)
+	}
+	if len(kept) == 0 {
+		return fmt.Errorf("%s is the last entry of %q; delete the list instead", entry, name)
+	}
+	l.Entries = kept
+	return s.write(ctx, l, "ip_list_updated")
+}
+
 func (s *Service) write(ctx context.Context, l List, action string) error {
 	content, err := Render(l)
 	if err != nil {

@@ -80,3 +80,34 @@ func TestApplyRestoresEveryFileOnFailedTest(t *testing.T) {
 		t.Errorf("nginx must not be reloaded after a failed test, reloads = %d", rl.n)
 	}
 }
+
+func TestDryRunRecordsWithoutWriting(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "existing.conf")
+	os.WriteFile(existing, []byte("old\n"), 0o644)
+	plan := &Plan{}
+	rl := &countingReloader{}
+	w := &Writer{Tester: fakeTester{ok: false}, Reloader: rl, DryRun: plan}
+	newContent, same := "new\n", "old\n"
+	err := w.Apply(context.Background(), "test", "x",
+		File{Path: existing, Content: &newContent},
+		File{Path: filepath.Join(dir, "created.conf"), Content: &newContent},
+		File{Path: filepath.Join(dir, "missing.conf")}, // removing nothing is not a change
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Apply(context.Background(), "test", "x", File{Path: existing, Content: &same})
+	if len(plan.Changes) != 2 || plan.Changes[0].Old != "old\n" || plan.Changes[1].Existed {
+		t.Errorf("changes = %+v", plan.Changes)
+	}
+	if data, _ := os.ReadFile(existing); string(data) != "old\n" {
+		t.Error("dry run modified a file")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "created.conf")); !os.IsNotExist(err) {
+		t.Error("dry run created a file")
+	}
+	if rl.n != 0 {
+		t.Error("dry run reloaded nginx")
+	}
+}

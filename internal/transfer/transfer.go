@@ -306,10 +306,19 @@ func (im *Importer) Apply(ctx context.Context, plan Plan, overwrite bool) error 
 			return err
 		}
 	}
-	if im.AfterWrite != nil {
+	if im.AfterWrite != nil && im.Writer.DryRun == nil {
 		if err := im.AfterWrite(); err != nil {
 			return err
 		}
+	}
+
+	if im.Writer.DryRun != nil {
+		for _, name := range plan.Enable {
+			if !im.Manager.IsEnabled(name) {
+				im.Writer.DryRun.RecordNote("enable host " + name)
+			}
+		}
+		return nil
 	}
 
 	var enabled []string
