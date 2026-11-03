@@ -29,6 +29,7 @@ const (
 	miStreams
 	miErrorPages
 	miConfigCheck
+	miHistory
 	miSettings
 	miExit
 )
@@ -51,6 +52,7 @@ func newMainMenu(deps Deps) *mainMenu {
 			{title: "Stream Proxies", desc: "forward TCP/UDP ports (databases, SSH, DNS, ...)"},
 			{title: "Error Pages", desc: "custom error page snippets for hosts"},
 			{title: "Config Check", desc: "conflicts, missing files, expiring certificates, dead upstreams"},
+			{title: "Configuration History", desc: "every change as a Git commit; diff and restore"},
 			{title: "Settings", desc: "GoNix configuration"},
 			{title: "Exit", desc: ""},
 		}),
@@ -94,6 +96,8 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newErrorPagesScreen(s.deps))
 			case miConfigCheck:
 				return s, navPush(newConfigCheckScreen(s.deps))
+			case miHistory:
+				return s, navPush(newHistoryScreen(s.deps))
 			case miSettings:
 				return s, navPush(newSettingsScreen(s.deps))
 			case miExit:

@@ -60,3 +60,11 @@ geoip:
   # needs the third-party geoip2 Nginx module (Debian/Ubuntu:
   # libnginx-mod-http-geoip2) and a database, e.g. from geoipupdate.
   database: /usr/share/GeoIP/GeoLite2-Country.mmdb
+
+history:
+  # Commit the Nginx configuration to a Git repository after every
+  # successful change, so any earlier state can be inspected and restored
+  # from "Configuration History". Requires git; the repository is kept
+  # outside /etc/nginx.
+  enabled: true
+  git_dir: /etc/gonix/history.git

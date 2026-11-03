@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/geoblock"
+	"github.com/mrmmg/gonix/internal/history"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/maintenance"
@@ -153,6 +155,26 @@ func run() error {
 		SnippetsDir: cfg.ErrorPages.SnippetsDirectory, Writer: snippetWriter,
 	}
 
+	var hist *history.History
+	if cfg.History.Enabled && history.Available() {
+		hist = &history.History{
+			GitDir:   cfg.History.GitDir,
+			WorkTree: cfg.Nginx.ConfigDir,
+			Paths: history.TrackedPaths(cfg.Nginx.ConfigDir,
+				cfg.Nginx.SitesAvailable, cfg.Nginx.SitesEnabled, cfg.ErrorPages.SnippetsDirectory,
+				cfg.Nginx.HTTPSnippetsDir, cfg.Nginx.StreamsDir,
+				filepath.Join(cfg.Nginx.MainIncludeDir, streams.WrapperFileName)),
+		}
+		// The first run records the configuration as it was before GoNix
+		// changed anything.
+		if log, err := hist.Log(context.Background(), 1); err == nil && len(log) == 0 {
+			_ = hist.Commit(context.Background(), "Initial state")
+		}
+		auditLogger.OnSuccess = func(e audit.Entry) {
+			_ = hist.Commit(context.Background(), history.Message(e))
+		}
+	}
+
 	deps := tui.Deps{
 		Config:      cfg,
 		Manager:     manager,
@@ -173,6 +195,7 @@ func run() error {
 		},
 		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: hostService, Writer: snippetWriter},
 		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, CacheDir: cfg.Nginx.CacheDir, Writer: snippetWriter},
+		History:     hist,
 		SystemSvc:   systemSvc,
 		Audit:       auditLogger,
 		Backups:     backups,

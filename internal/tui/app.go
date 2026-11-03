@@ -11,6 +11,7 @@ import (
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/geoblock"
+	"github.com/mrmmg/gonix/internal/history"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/maintenance"
@@ -43,6 +44,7 @@ type Deps struct {
 	Upstreams   *upstreams.Service
 	Streams     *streams.Service
 	GeoBlock    *geoblock.Service
+	History     *history.History // nil when disabled or git is missing
 	RateLimits  *ratelimit.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger

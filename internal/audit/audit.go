@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,9 @@ type Entry struct {
 	Target    string
 	Result    Result
 	Error     string
+	// Actor says what made the change when it was not the TUI, e.g. "cli"
+	// or an AI agent's name (from GONIX_ACTOR).
+	Actor string
 }
 
 // String renders the entry in the pipe-delimited format documented in the
@@ -34,6 +38,9 @@ type Entry struct {
 func (e Entry) String() string {
 	s := fmt.Sprintf("%s | user=%s | action=%s | target=%s | result=%s",
 		e.Timestamp.Format("2006-01-02 15:04:05"), e.User, e.Action, e.Target, e.Result)
+	if e.Actor != "" {
+		s += fmt.Sprintf(" | actor=%s", e.Actor)
+	}
 	if e.Error != "" {
 		s += fmt.Sprintf(" | error=%s", e.Error)
 	}
@@ -45,6 +52,14 @@ func (e Entry) String() string {
 // configs/logrotate.conf, installed by install.sh / `make install`).
 type Logger struct {
 	path string
+
+	// Actor is recorded on every entry that does not set its own, e.g.
+	// "cli". GONIX_ACTOR overrides it.
+	Actor string
+
+	// OnSuccess, when set, is called after every successful action is
+	// logged, e.g. to commit the configuration to history.
+	OnSuccess func(Entry)
 }
 
 // NewLogger creates a Logger writing to path, creating parent directories as
@@ -63,6 +78,12 @@ func (l *Logger) Log(e Entry) error {
 	if e.Timestamp.IsZero() {
 		e.Timestamp = time.Now()
 	}
+	if e.Actor == "" {
+		e.Actor = l.Actor
+		if a := os.Getenv("GONIX_ACTOR"); a != "" {
+			e.Actor = a
+		}
+	}
 	f, err := os.OpenFile(l.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
 	if err != nil {
 		return fmt.Errorf("opening audit log: %w", err)
@@ -70,6 +91,9 @@ func (l *Logger) Log(e Entry) error {
 	defer f.Close()
 	if _, err := f.WriteString(e.String() + "\n"); err != nil {
 		return fmt.Errorf("writing audit log: %w", err)
+	}
+	if e.Result == ResultSuccess && l.OnSuccess != nil {
+		l.OnSuccess(e)
 	}
 	return nil
 }
@@ -84,4 +108,40 @@ func CurrentUser() string {
 		return u
 	}
 	return "unknown"
+}
+
+// Path returns the log file path.
+func (l *Logger) Path() string { return l.path }
+
+// ParseLine reverses Entry.String. The error field comes last, so an error
+// message containing " | " stays intact.
+func ParseLine(line string) (Entry, bool) {
+	parts := strings.Split(line, " | ")
+	if len(parts) < 4 {
+		return Entry{}, false
+	}
+	ts, err := time.ParseInLocation("2006-01-02 15:04:05", parts[0], time.Local)
+	if err != nil {
+		return Entry{}, false
+	}
+	e := Entry{Timestamp: ts}
+	for i := 1; i < len(parts); i++ {
+		key, val, _ := strings.Cut(parts[i], "=")
+		switch key {
+		case "user":
+			e.User = val
+		case "action":
+			e.Action = val
+		case "target", "host":
+			e.Target = val
+		case "result":
+			e.Result = Result(val)
+		case "actor":
+			e.Actor = val
+		case "error":
+			e.Error = strings.Join(append([]string{val}, parts[i+1:]...), " | ")
+			i = len(parts)
+		}
+	}
+	return e, true
 }

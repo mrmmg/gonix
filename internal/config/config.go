@@ -22,6 +22,15 @@ type Config struct {
 	AccessLists  AccessListsConfig  `yaml:"access_lists"`
 	ErrorPages   ErrorPagesConfig   `yaml:"error_pages"`
 	GeoIP        GeoIPConfig        `yaml:"geoip"`
+	History      HistoryConfig      `yaml:"history"`
+}
+
+type HistoryConfig struct {
+	// Enabled commits the Nginx configuration to a Git repository after
+	// every successful change (requires git).
+	Enabled bool `yaml:"enabled"`
+	// GitDir is that repository, kept outside the Nginx directory.
+	GitDir string `yaml:"git_dir"`
 }
 
 type GeoIPConfig struct {
@@ -114,6 +123,10 @@ func Default() *Config {
 		},
 		GeoIP: GeoIPConfig{
 			Database: "/usr/share/GeoIP/GeoLite2-Country.mmdb",
+		},
+		History: HistoryConfig{
+			Enabled: true,
+			GitDir:  "/etc/gonix/history.git",
 		},
 	}
 }
