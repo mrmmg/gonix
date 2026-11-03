@@ -255,3 +255,13 @@ func TestUpstreamGroups(t *testing.T) {
 		t.Errorf("findings = %+v", f)
 	}
 }
+
+func TestProxyCacheWithoutBuffering(t *testing.T) {
+	e := newEnv(t)
+	h := proxyHost("example.com")
+	h.Presets = []string{"proxy-cache"}
+	e.addHost(t, h, true)
+	if f := run(t, e); !has(f, Warning, "buffering off") {
+		t.Errorf("findings = %+v", f)
+	}
+}

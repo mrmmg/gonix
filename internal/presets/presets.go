@@ -25,10 +25,13 @@ type Preset struct {
 	// ForRedirect presets also apply to redirect hosts, whose server-level
 	// `return` still passes through header filters.
 	ForRedirect bool
+	// ProxyOnly presets only apply to reverse proxy hosts.
+	ProxyOnly bool
 	// Server is included by hosts at server level.
 	Server string
 	// HTTP, when set, is written to the http-level snippets directory,
-	// e.g. a map the server snippet relies on.
+	// e.g. a map the server snippet relies on. CacheDirPlaceholder is
+	// replaced with Service.CacheDir.
 	HTTP string
 }
 
@@ -99,6 +102,25 @@ expires $gonix_static_expires;
 `,
 	},
 	{
+		Name:        "proxy-cache",
+		Title:       "Proxy cache",
+		Description: "cache responses the backend marks cacheable; requests with cookies or Authorization always reach the backend",
+		ProxyOnly:   true,
+		Server: `# Only responses the backend allows (Cache-Control max-age, Expires) are
+# cached; responses with Set-Cookie or Cache-Control private/no-store
+# never are. Requests carrying cookies or credentials skip the cache, so
+# one visitor's personalized page is never served to another.
+proxy_cache gonix_cache;
+proxy_cache_bypass $http_cookie $http_authorization;
+proxy_no_cache $http_cookie $http_authorization;
+proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+proxy_cache_background_update on;
+proxy_cache_lock on;
+`,
+		HTTP: `proxy_cache_path ` + CacheDirPlaceholder + ` levels=1:2 keys_zone=gonix_cache:50m max_size=1g inactive=60m use_temp_path=off;
+`,
+	},
+	{
 		Name:        "block-sensitive-files",
 		Title:       "Block sensitive files",
 		Description: "404 for dotfiles (.git, .env, ...) and backup/dump files (.bak, .sql, ...), except /.well-known/",
@@ -147,6 +169,9 @@ func Applicable(h nginx.Host) []Preset {
 		if h.Mode == nginx.ModeRedirect && !p.ForRedirect {
 			continue
 		}
+		if p.ProxyOnly && h.Mode != nginx.ModeReverseProxy {
+			continue
+		}
 		out = append(out, p)
 	}
 	return out
@@ -192,8 +217,13 @@ func header(p Preset) string {
 type Service struct {
 	SnippetsDir string // server-level snippets, included by hosts
 	HTTPDir     string // http-level snippets, e.g. /etc/nginx/conf.d
+	CacheDir    string // proxy cache directory, e.g. /var/cache/nginx/gonix
 	Writer      *snippet.Writer
 }
+
+// CacheDirPlaceholder in a preset's HTTP content is replaced with
+// Service.CacheDir.
+const CacheDirPlaceholder = "{{CACHE_DIR}}"
 
 // ServerPath and HTTPPath return a preset's snippet file paths.
 func (s *Service) ServerPath(name string) string {
@@ -219,13 +249,27 @@ func (s *Service) Ensure(ctx context.Context, names []string) error {
 			if err := os.MkdirAll(s.HTTPDir, 0o755); err != nil {
 				return fmt.Errorf("creating %s: %w", s.HTTPDir, err)
 			}
-			files = appendIfChanged(files, s.HTTPPath(name), header(p)+p.HTTP)
+			http := p.HTTP
+			if strings.Contains(http, CacheDirPlaceholder) {
+				if err := validateCacheDir(s.CacheDir); err != nil {
+					return err
+				}
+				http = strings.ReplaceAll(http, CacheDirPlaceholder, s.CacheDir)
+			}
+			files = appendIfChanged(files, s.HTTPPath(name), header(p)+http)
 		}
 	}
 	if len(files) == 0 {
 		return nil
 	}
 	return s.Writer.Apply(ctx, "presets_updated", strings.Join(names, ","), files...)
+}
+
+func validateCacheDir(dir string) error {
+	if !filepath.IsAbs(dir) || filepath.Clean(dir) == "/" || strings.ContainsAny(dir, " \t\n;{}\"'$#") {
+		return fmt.Errorf("proxy cache directory %q must be an absolute path without spaces or any of ; { } \" ' $ #", dir)
+	}
+	return nil
 }
 
 func appendIfChanged(files []snippet.File, path, content string) []snippet.File {

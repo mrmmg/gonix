@@ -32,6 +32,8 @@ type NginxConfig struct {
 	// IP, rate limit zones, ...). nginx.conf must include it inside the
 	// http block, as Debian/Ubuntu/RHEL do with conf.d by default.
 	HTTPSnippetsDir string `yaml:"http_snippets_dir"`
+	// CacheDir is where the "proxy-cache" preset stores cached responses.
+	CacheDir string `yaml:"cache_dir"`
 }
 
 type CertificatesConfig struct {
@@ -74,6 +76,7 @@ func Default() *Config {
 			SitesEnabled:    "/etc/nginx/sites-enabled",
 			BinaryPath:      "nginx",
 			HTTPSnippetsDir: "/etc/nginx/conf.d",
+			CacheDir:        "/var/cache/nginx/gonix",
 		},
 		Certificates: CertificatesConfig{
 			Directory: "/etc/nginx/certs",

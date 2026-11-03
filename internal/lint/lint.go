@@ -169,7 +169,14 @@ func (c *Checker) checkHost(h nginx.Host, add func(Severity, string, string, ...
 			}
 		}
 	}
+	proxyCache := false
+	for _, p := range h.Presets {
+		proxyCache = proxyCache || p == "proxy-cache"
+	}
 	for _, loc := range h.Locations {
+		if proxyCache && loc.Proxy != nil && !loc.Proxy.BufferingEnabled {
+			add(Warning, name, "location %s has proxy buffering off, so the proxy cache preset never caches it", loc.Path)
+		}
 		if loc.AccessListName != "" {
 			need(filepath.Join(c.AccessListDir, loc.AccessListName+".htpasswd"), "access list")
 		}

@@ -19,13 +19,14 @@ func TestHostPresetsWizard(t *testing.T) {
 	var model tea.Model = root
 	model, _ = model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
-	// No SSL: security-headers, gzip, static-cache, block-sensitive-files,
-	// block-bad-bots are offered (HSTS is not). Enable the first two.
+	// No SSL: security-headers, gzip, static-cache, proxy-cache,
+	// block-sensitive-files, block-bad-bots are offered (HSTS is not).
+	// Enable the first two.
 	model = pressDown(t, model, 1)
 	model = pressEnter(t, model)
 	model = pressDown(t, model, 1)
 	model = pressEnter(t, model)
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		model = pressEnter(t, model)
 	}
 	requireOKResult(t, root)

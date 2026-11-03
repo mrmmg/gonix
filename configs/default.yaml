@@ -15,6 +15,8 @@ nginx:
   # directory inside its http block, e.g. `include /etc/nginx/conf.d/*.conf;`
   # (the default on Debian/Ubuntu/RHEL).
   http_snippets_dir: /etc/nginx/conf.d
+  # Responses cached by the "Proxy cache" host preset are stored here.
+  cache_dir: /var/cache/nginx/gonix
 
 certificates:
   # Centralized certificate directory. Certificates are obtained manually

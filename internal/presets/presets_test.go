@@ -2,9 +2,14 @@ package presets
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -28,6 +33,11 @@ func TestApplicableAndSort(t *testing.T) {
 	for _, p := range Applicable(plain) {
 		if p.SSLOnly {
 			t.Errorf("%s offered to a host without SSL", p.Name)
+		}
+	}
+	for _, p := range Applicable(nginx.Host{Mode: nginx.ModeStatic}) {
+		if p.ProxyOnly {
+			t.Errorf("%s offered to a static host", p.Name)
 		}
 	}
 	redirect := nginx.Host{Mode: nginx.ModeRedirect, SSL: nginx.SSLConfig{Enabled: true}}
@@ -75,7 +85,7 @@ func TestEnsureWritesOnlyChangedFiles(t *testing.T) {
 func TestAllPresetsPassRealNginx(t *testing.T) {
 	p := nginxtest.New(t)
 	snippets := filepath.Join(p.Dir, "snippets")
-	svc := &Service{SnippetsDir: snippets, HTTPDir: p.HTTPDir, Writer: &snippet.Writer{Tester: &countingTester{}}}
+	svc := &Service{SnippetsDir: snippets, HTTPDir: p.HTTPDir, CacheDir: filepath.Join(p.Dir, "cache"), Writer: &snippet.Writer{Tester: &countingTester{}}}
 	if err := os.MkdirAll(snippets, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -134,5 +144,76 @@ func TestAllPresetsPassRealNginx(t *testing.T) {
 	}
 	if strings.Contains(out, "[warn]") {
 		t.Errorf("nginx -t printed warnings:\n%s", out)
+	}
+}
+
+func TestProxyCacheRequiresSafeCacheDir(t *testing.T) {
+	svc := &Service{SnippetsDir: t.TempDir(), HTTPDir: t.TempDir(), CacheDir: "/var/cache/x; evil", Writer: &snippet.Writer{Tester: &countingTester{}}}
+	if err := svc.Ensure(context.Background(), []string{"proxy-cache"}); err == nil {
+		t.Error("expected an unsafe cache directory to be rejected")
+	}
+	svc.CacheDir = "/var/cache/nginx/gonix"
+	if err := svc.Ensure(context.Background(), []string{"proxy-cache"}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(svc.HTTPPath("proxy-cache"))
+	if !strings.Contains(string(data), "proxy_cache_path /var/cache/nginx/gonix ") {
+		t.Errorf("cache dir not substituted:\n%s", data)
+	}
+}
+
+// TestProxyCacheBehavior checks with a real Nginx that a cacheable response
+// is served from cache, while a request with a cookie reaches the backend.
+func TestProxyCacheBehavior(t *testing.T) {
+	p := nginxtest.New(t)
+	hits := 0
+	backend := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Cache-Control", "public, max-age=60")
+		fmt.Fprintf(w, "hit %d", hits)
+	})}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go backend.Serve(l)
+	t.Cleanup(func() { backend.Close() })
+
+	snippets := filepath.Join(p.Dir, "snippets")
+	os.MkdirAll(snippets, 0o755)
+	svc := &Service{SnippetsDir: snippets, HTTPDir: p.HTTPDir, CacheDir: filepath.Join(p.Dir, "cache"), Writer: &snippet.Writer{Tester: &countingTester{}}}
+	if err := svc.Ensure(context.Background(), []string{"proxy-cache"}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := nginx.NewRenderer(p.Dir, p.Dir, p.Dir, snippets)
+	_, port, _ := net.SplitHostPort(l.Addr().String())
+	portN, _ := strconv.Atoi(port)
+	site, err := r.Render(nginx.Host{ServerName: "example.com", Mode: nginx.ModeReverseProxy, Listen: 80, Presets: []string{"proxy-cache"},
+		Locations: []nginx.Location{{Path: "/", Proxy: &nginx.ProxyConfig{UpstreamScheme: "http", UpstreamHost: "127.0.0.1", UpstreamPort: portN, HTTPVersion: "1.1", BufferingEnabled: true}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.AddSite(t, "example.com", site)
+	p.Start(t)
+
+	get := func(cookie string) string {
+		req, _ := http.NewRequest(http.MethodGet, "http://127.0.0.1:"+strconv.Itoa(p.Port(t, 80))+"/page", nil)
+		req.Host = "example.com"
+		if cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	}
+	if first, second := get(""), get(""); first != "hit 1" || second != "hit 1" {
+		t.Errorf("cacheable response not cached: %q then %q", first, second)
+	}
+	if withCookie := get("session=abc"); withCookie != "hit 2" {
+		t.Errorf("request with a cookie must reach the backend, got %q", withCookie)
 	}
 }
