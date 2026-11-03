@@ -34,6 +34,13 @@ type NginxConfig struct {
 	HTTPSnippetsDir string `yaml:"http_snippets_dir"`
 	// CacheDir is where the "proxy-cache" preset stores cached responses.
 	CacheDir string `yaml:"cache_dir"`
+	// StreamsDir holds GoNix's TCP/UDP stream proxies, included inside a
+	// stream { } block.
+	StreamsDir string `yaml:"streams_dir"`
+	// MainIncludeDir is a directory nginx.conf includes at main (top)
+	// level, where GoNix may place the stream { } block that includes
+	// StreamsDir (Debian/Ubuntu: /etc/nginx/modules-enabled).
+	MainIncludeDir string `yaml:"main_include_dir"`
 }
 
 type CertificatesConfig struct {
@@ -77,6 +84,8 @@ func Default() *Config {
 			BinaryPath:      "nginx",
 			HTTPSnippetsDir: "/etc/nginx/conf.d",
 			CacheDir:        "/var/cache/nginx/gonix",
+			StreamsDir:      "/etc/nginx/gonix-streams",
+			MainIncludeDir:  "/etc/nginx/modules-enabled",
 		},
 		Certificates: CertificatesConfig{
 			Directory: "/etc/nginx/certs",

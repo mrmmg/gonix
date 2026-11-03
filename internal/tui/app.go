@@ -17,6 +17,7 @@ import (
 	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/ratelimit"
 	"github.com/mrmmg/gonix/internal/realip"
+	"github.com/mrmmg/gonix/internal/streams"
 	"github.com/mrmmg/gonix/internal/system"
 	"github.com/mrmmg/gonix/internal/upstreams"
 )
@@ -39,6 +40,7 @@ type Deps struct {
 	Presets     *presets.Service
 	Maintenance *maintenance.Service
 	Upstreams   *upstreams.Service
+	Streams     *streams.Service
 	RateLimits  *ratelimit.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger

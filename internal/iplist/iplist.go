@@ -214,6 +214,9 @@ type Service struct {
 	Store   *Store
 	Manager *nginx.Manager // used to find hosts that include a list
 	Writer  *snippet.Writer
+	// OtherUsers, when set, reports users outside hosts, e.g. stream
+	// proxies.
+	OtherUsers func(name string) []string
 }
 
 // Create writes a brand new list.
@@ -292,6 +295,9 @@ func (s *Service) UsedBy(name string) ([]string, error) {
 				users = append(users, h.ServerName+" "+loc.Path)
 			}
 		}
+	}
+	if s.OtherUsers != nil {
+		users = append(users, s.OtherUsers(name)...)
 	}
 	return users, nil
 }

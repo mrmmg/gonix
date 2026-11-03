@@ -18,6 +18,7 @@ import (
 	"github.com/mrmmg/gonix/internal/ratelimit"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/snippet"
+	"github.com/mrmmg/gonix/internal/streams"
 	"github.com/mrmmg/gonix/internal/system"
 	"github.com/mrmmg/gonix/internal/upstreams"
 )
@@ -87,7 +88,11 @@ func testDeps(t *testing.T) Deps {
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
 			Manager: manager, Writer: writer,
 		},
-		Upstreams:   &upstreams.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Manager: manager, Writer: writer},
+		Upstreams: &upstreams.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Manager: manager, Writer: writer},
+		Streams: &streams.Service{
+			Dir: t.TempDir(), MainIncludeDir: t.TempDir(), ConfigDir: t.TempDir(),
+			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, Writer: writer,
+		},
 		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: svc, Writer: writer},
 		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
 		SystemSvc:   systemSvc,

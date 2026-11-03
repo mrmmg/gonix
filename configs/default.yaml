@@ -17,6 +17,12 @@ nginx:
   http_snippets_dir: /etc/nginx/conf.d
   # Responses cached by the "Proxy cache" host preset are stored here.
   cache_dir: /var/cache/nginx/gonix
+  # TCP/UDP stream proxies are written here and included from a stream { }
+  # block. When nginx.conf has no stream block yet, GoNix can create one in
+  # main_include_dir, a directory nginx.conf includes at top level (Debian
+  # and Ubuntu: /etc/nginx/modules-enabled).
+  streams_dir: /etc/nginx/gonix-streams
+  main_include_dir: /etc/nginx/modules-enabled
 
 certificates:
   # Centralized certificate directory. Certificates are obtained manually

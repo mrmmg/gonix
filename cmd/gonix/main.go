@@ -24,6 +24,7 @@ import (
 	"github.com/mrmmg/gonix/internal/ratelimit"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/snippet"
+	"github.com/mrmmg/gonix/internal/streams"
 	"github.com/mrmmg/gonix/internal/system"
 	"github.com/mrmmg/gonix/internal/tui"
 	"github.com/mrmmg/gonix/internal/upstreams"
@@ -146,19 +147,25 @@ func run() error {
 		return fmt.Errorf("initializing IP access list store: %w", err)
 	}
 
+	streamService := &streams.Service{
+		Dir: cfg.Nginx.StreamsDir, MainIncludeDir: cfg.Nginx.MainIncludeDir, ConfigDir: cfg.Nginx.ConfigDir,
+		SnippetsDir: cfg.ErrorPages.SnippetsDirectory, Writer: snippetWriter,
+	}
+
 	deps := tui.Deps{
 		Config:      cfg,
 		Manager:     manager,
 		HostService: hostService,
 		AccessLists: accessLists,
 		ErrorPages:  errorPagesService,
-		IPLists:     &iplist.Service{Store: ipListStore, Manager: manager, Writer: snippetWriter},
+		IPLists:     &iplist.Service{Store: ipListStore, Manager: manager, Writer: snippetWriter, OtherUsers: streamService.UsingIPList},
 		RealIP:      &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
 		RateLimits: &ratelimit.Service{
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
 			Manager: manager, Writer: snippetWriter,
 		},
 		Upstreams:   &upstreams.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Manager: manager, Writer: snippetWriter},
+		Streams:     streamService,
 		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: hostService, Writer: snippetWriter},
 		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, CacheDir: cfg.Nginx.CacheDir, Writer: snippetWriter},
 		SystemSvc:   systemSvc,
