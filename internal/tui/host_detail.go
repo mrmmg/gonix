@@ -36,6 +36,7 @@ const (
 	hdProxy
 	hdAccessList
 	hdIPRules
+	hdRateLimit
 	hdErrorPages
 	hdLogs
 	hdViewConfig
@@ -77,6 +78,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{hdProxy, menuItem{title: "Proxy Configuration"}},
 		{hdAccessList, menuItem{title: "Access List"}},
 		{hdIPRules, menuItem{title: "IP Access Rules", desc: ipRulesDesc(s.host)}},
+		{hdRateLimit, menuItem{title: "Rate Limit", desc: rateLimitDesc(s.host)}},
 		{hdErrorPages, menuItem{title: "Error Pages", desc: errorPagesDesc(s.host)}},
 		{hdLogs, menuItem{title: "Access / Error Logs"}},
 		{hdViewConfig, menuItem{title: "View Configuration"}},
@@ -111,7 +113,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 // therefore are refused for hosts GoNix did not generate.
 var unmanagedBlocked = map[int]bool{
 	hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true, hdPresets: true,
-	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdErrorPages: true, hdLogs: true,
+	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdRateLimit: true, hdErrorPages: true, hdLogs: true,
 }
 
 // selectAction moves the menu cursor to action, reporting whether it is
@@ -232,6 +234,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 		return newHostAccessListScreen(s.deps, s.host), nil
 	case hdIPRules:
 		return newHostIPRulesWizard(s.deps, s.host), nil
+	case hdRateLimit:
+		return newHostRateLimitWizard(s.deps, s.host), nil
 	case hdErrorPages:
 		return newHostErrorPagesScreen(s.deps, s.host), nil
 	case hdLogs:

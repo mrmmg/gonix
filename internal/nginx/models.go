@@ -128,6 +128,7 @@ type Location struct {
 	Proxy          *ProxyConfig
 	AccessListName string // empty when no access list is applied
 	IPListName     string // IP access list included by this location, empty if none
+	RateLimit      string // rate limit included by this location, empty if none
 }
 
 // Host is the internal representation of a single Nginx virtual host,
@@ -146,6 +147,7 @@ type Host struct {
 	ErrorLog       bool
 	AccessListName string // access list applied at server level, empty if none
 	IPListName     string // IP access list included at server level, empty if none
+	RateLimit      string // rate limit included at server level, empty if none
 
 	// SatisfyAny renders `satisfy any;`, so a client passes when it matches
 	// the IP list OR authenticates, instead of having to do both.
@@ -201,9 +203,15 @@ func (h Host) Validate() error {
 	if h.IPListName != "" && !ValidSnippetName(h.IPListName) {
 		return fmt.Errorf("host %q references an invalid IP access list name %q", h.ServerName, h.IPListName)
 	}
+	if h.RateLimit != "" && !ValidSnippetName(h.RateLimit) {
+		return fmt.Errorf("host %q references an invalid rate limit name %q", h.ServerName, h.RateLimit)
+	}
 	for _, loc := range h.Locations {
 		if loc.IPListName != "" && !ValidSnippetName(loc.IPListName) {
 			return fmt.Errorf("location %q in host %q references an invalid IP access list name %q", loc.Path, h.ServerName, loc.IPListName)
+		}
+		if loc.RateLimit != "" && !ValidSnippetName(loc.RateLimit) {
+			return fmt.Errorf("location %q in host %q references an invalid rate limit name %q", loc.Path, h.ServerName, loc.RateLimit)
 		}
 	}
 	for _, p := range h.Presets {

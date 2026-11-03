@@ -20,6 +20,7 @@ import (
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/presets"
+	"github.com/mrmmg/gonix/internal/ratelimit"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/snippet"
 	"github.com/mrmmg/gonix/internal/system"
@@ -151,10 +152,14 @@ func run() error {
 		ErrorPages:  errorPagesService,
 		IPLists:     &iplist.Service{Store: ipListStore, Manager: manager, Writer: snippetWriter},
 		RealIP:      &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
-		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
-		SystemSvc:   systemSvc,
-		Audit:       auditLogger,
-		Backups:     backups,
+		RateLimits: &ratelimit.Service{
+			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
+			Manager: manager, Writer: snippetWriter,
+		},
+		Presets:   &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
+		SystemSvc: systemSvc,
+		Audit:     auditLogger,
+		Backups:   backups,
 	}
 
 	p := tea.NewProgram(tui.NewApp(deps), tea.WithAltScreen())

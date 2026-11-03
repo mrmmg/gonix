@@ -32,6 +32,7 @@ var (
 	reIPListInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + IPListFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 	rePresetInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + PresetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 	reHTTP2On       = regexp.MustCompile(`(?m)^\s*http2\s+on\s*;`)
+	reRateLimitInc  = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + RateLimitFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 	reSatisfyAny    = regexp.MustCompile(`(?m)^\s*satisfy\s+any\s*;`)
 	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
@@ -145,6 +146,9 @@ func ParseManagedHost(content string) (Host, error) {
 		h.IPListName = m[1]
 	}
 	h.SatisfyAny = reSatisfyAny.MatchString(serverLevel)
+	if m := reRateLimitInc.FindStringSubmatch(serverLevel); m != nil {
+		h.RateLimit = m[1]
+	}
 	for _, m := range rePresetInc.FindAllStringSubmatch(serverLevel, -1) {
 		h.Presets = append(h.Presets, m[1])
 	}
@@ -233,6 +237,9 @@ func parseLocationBody(path, body string) Location {
 	}
 	if m := reIPListInc.FindStringSubmatch(body); m != nil {
 		loc.IPListName = m[1]
+	}
+	if m := reRateLimitInc.FindStringSubmatch(body); m != nil {
+		loc.RateLimit = m[1]
 	}
 	return loc
 }

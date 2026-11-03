@@ -39,3 +39,13 @@ const PresetFilePrefix = "gonix-preset-"
 func PresetFileName(name string) string {
 	return PresetFilePrefix + name + ".conf"
 }
+
+// RateLimitFilePrefix is prepended to both files of a rate limit: the
+// http-level zone definition and the server/location-level snippet.
+const RateLimitFilePrefix = "gonix-ratelimit-"
+
+// RateLimitFileName returns the file name (without directory) of the rate
+// limit called name, e.g. "gonix-ratelimit-api.conf".
+func RateLimitFileName(name string) string {
+	return RateLimitFilePrefix + name + ".conf"
+}

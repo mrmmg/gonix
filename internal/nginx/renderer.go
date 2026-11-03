@@ -47,6 +47,7 @@ type renderView struct {
 	ErrorLogPath   string
 	AccessListFile string
 	IPListFile     string
+	RateLimitFile  string
 	ErrorPagesFile string
 	PresetFiles    []string
 	HTTP2Directive bool
@@ -60,10 +61,16 @@ func (r *Renderer) htpasswdPath(name string) string {
 }
 
 func (r *Renderer) ipListPath(name string) string {
+	return r.snippetPath(IPListFileName, name)
+}
+
+// snippetPath resolves a snippet name to its file in the snippets
+// directory, or "" when name is empty.
+func (r *Renderer) snippetPath(fileName func(string) string, name string) string {
 	if name == "" {
 		return ""
 	}
-	return filepath.Join(r.snippetsDir, IPListFileName(name))
+	return filepath.Join(r.snippetsDir, fileName(name))
 }
 
 // Render produces the full Nginx server-block configuration for host h.
@@ -79,6 +86,7 @@ func (r *Renderer) Render(h Host) (string, error) {
 	for i, l := range h.Locations {
 		l.AccessListName = r.htpasswdPath(l.AccessListName)
 		l.IPListName = r.ipListPath(l.IPListName)
+		l.RateLimit = r.snippetPath(RateLimitFileName, l.RateLimit)
 		rendered.Locations[i] = l
 	}
 
@@ -88,6 +96,7 @@ func (r *Renderer) Render(h Host) (string, error) {
 		ErrorLogPath:   filepath.Join(r.errorLogDir, h.ServerName+".error.log"),
 		AccessListFile: r.htpasswdPath(h.AccessListName),
 		IPListFile:     r.ipListPath(h.IPListName),
+		RateLimitFile:  r.snippetPath(RateLimitFileName, h.RateLimit),
 		HTTP2Directive: r.Build.HTTP2Directive(),
 	}
 	for _, p := range h.Presets {

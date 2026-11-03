@@ -46,6 +46,9 @@ server {
 {{- if .Host.SatisfyAny }}
     satisfy any;
 {{- end }}
+{{- if .RateLimitFile }}
+    include {{ .RateLimitFile }};
+{{- end }}
 
 {{- if .Host.AccessLog }}
     access_log {{ .AccessLogPath }};
