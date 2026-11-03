@@ -108,6 +108,9 @@ func (s *Service) CreateHost(ctx context.Context, h nginx.Host) (ApplyResult, er
 	if err := ValidateDomain(h.ServerName); err != nil {
 		return ApplyResult{}, err
 	}
+	if err := validateAliases(h.ServerAlias); err != nil {
+		return ApplyResult{}, err
+	}
 	if err := h.Validate(); err != nil {
 		return ApplyResult{}, err
 	}
@@ -116,6 +119,9 @@ func (s *Service) CreateHost(ctx context.Context, h nginx.Host) (ApplyResult, er
 
 // UpdateHost writes changes to an existing host, applying them safely.
 func (s *Service) UpdateHost(ctx context.Context, h nginx.Host) (ApplyResult, error) {
+	if err := validateAliases(h.ServerAlias); err != nil {
+		return ApplyResult{}, err
+	}
 	if err := h.Validate(); err != nil {
 		return ApplyResult{}, err
 	}
@@ -172,6 +178,15 @@ func (s *Service) DeleteHost(ctx context.Context, fileName string) error {
 		}
 	}
 	s.audit("host_deleted", fileName, audit.ResultSuccess, nil)
+	return nil
+}
+
+func validateAliases(aliases []string) error {
+	for _, a := range aliases {
+		if err := ValidateDomain(a); err != nil {
+			return fmt.Errorf("additional server name: %w", err)
+		}
+	}
 	return nil
 }
 

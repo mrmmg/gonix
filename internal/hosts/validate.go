@@ -54,3 +54,24 @@ func ValidatePath(path string) error {
 	}
 	return nil
 }
+
+// ParseAliases splits a space- or comma-separated list of additional server
+// names (e.g. "www.example.com, example.org"), validating each one and
+// dropping duplicates and the primary domain itself.
+func ParseAliases(input, primary string) ([]string, error) {
+	fields := strings.FieldsFunc(input, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' })
+	seen := map[string]bool{strings.ToLower(primary): true}
+	var aliases []string
+	for _, f := range fields {
+		if err := ValidateDomain(f); err != nil {
+			return nil, err
+		}
+		key := strings.ToLower(f)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		aliases = append(aliases, f)
+	}
+	return aliases, nil
+}

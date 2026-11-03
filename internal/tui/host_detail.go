@@ -3,23 +3,30 @@ package tui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mrmmg/gonix/internal/certificates"
+	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/nginx"
 )
 
 // hostDetailScreen implements the per-host management submenu described in
 // the project specification (section 6).
 type hostDetailScreen struct {
-	deps Deps
-	host nginx.ListedHost
-	menu *simpleMenu
+	deps    Deps
+	host    nginx.ListedHost
+	menu    *simpleMenu
+	actions []int // hd* action of each menu row, in display order
 }
 
+// Host detail actions. Which ones are offered depends on the host's mode,
+// so menu rows are mapped to actions through hostDetailScreen.actions.
 const (
 	hdToggleEnable = iota
+	hdRedirect
+	hdAliases
 	hdAddPath
 	hdAddCustomPath
 	hdSSL
@@ -33,6 +40,14 @@ const (
 	hdDelete
 )
 
+// redirectHostActions are the only actions that make sense for a redirect
+// host: it has no locations, and its server-level `return` answers before
+// access lists or error pages would ever apply.
+var redirectHostActions = map[int]bool{
+	hdToggleEnable: true, hdRedirect: true, hdAliases: true, hdSSL: true,
+	hdLogs: true, hdViewConfig: true, hdBackupRestore: true, hdDelete: true,
+}
+
 func newHostDetailScreen(deps Deps, h nginx.ListedHost) *hostDetailScreen {
 	s := &hostDetailScreen{deps: deps, host: h}
 	s.rebuildMenu()
@@ -44,29 +59,80 @@ func (s *hostDetailScreen) rebuildMenu() {
 	if s.host.Enabled {
 		toggleLabel = "Disable Host"
 	}
-	items := []menuItem{
-		{title: toggleLabel},
-		{title: "Add New Path"},
-		{title: "Add Custom Path"},
-		{title: "SSL Configuration"},
-		{title: "WebSocket Configuration"},
-		{title: "Proxy Configuration"},
-		{title: "Access List"},
-		{title: "Error Pages", desc: errorPagesDesc(s.host)},
-		{title: "Access / Error Logs"},
-		{title: "View Configuration"},
-		{title: "Backup / Restore"},
-		{title: "Delete Host"},
+	all := []struct {
+		action int
+		item   menuItem
+	}{
+		{hdToggleEnable, menuItem{title: toggleLabel}},
+		{hdRedirect, menuItem{title: "Redirect Configuration", desc: redirectDesc(s.host)}},
+		{hdAliases, menuItem{title: "Domain Names", desc: aliasesDesc(s.host)}},
+		{hdAddPath, menuItem{title: "Add New Path"}},
+		{hdAddCustomPath, menuItem{title: "Add Custom Path"}},
+		{hdSSL, menuItem{title: "SSL Configuration"}},
+		{hdWebSocket, menuItem{title: "WebSocket Configuration"}},
+		{hdProxy, menuItem{title: "Proxy Configuration"}},
+		{hdAccessList, menuItem{title: "Access List"}},
+		{hdErrorPages, menuItem{title: "Error Pages", desc: errorPagesDesc(s.host)}},
+		{hdLogs, menuItem{title: "Access / Error Logs"}},
+		{hdViewConfig, menuItem{title: "View Configuration"}},
+		{hdBackupRestore, menuItem{title: "Backup / Restore"}},
+		{hdDelete, menuItem{title: "Delete Host"}},
 	}
-	if !s.host.Managed {
-		for i := range items {
-			if i == hdToggleEnable || i == hdViewConfig || i == hdDelete || i == hdBackupRestore {
-				continue
-			}
-			items[i].desc = mutedStyle.Render("(unmanaged host)")
+
+	isRedirectHost := s.host.Managed && s.host.Mode == nginx.ModeRedirect
+	var items []menuItem
+	s.actions = s.actions[:0]
+	for _, e := range all {
+		if isRedirectHost && !redirectHostActions[e.action] {
+			continue
+		}
+		if !isRedirectHost && e.action == hdRedirect {
+			continue
+		}
+		if !s.host.Managed && unmanagedBlocked[e.action] {
+			e.item.desc = mutedStyle.Render("(unmanaged host)")
+		}
+		items = append(items, e.item)
+		s.actions = append(s.actions, e.action)
+	}
+	if s.menu == nil {
+		s.menu = newSimpleMenu(items)
+	} else {
+		s.menu.SetItems(items)
+	}
+}
+
+// unmanagedBlocked lists the actions that edit a host's configuration and
+// therefore are refused for hosts GoNix did not generate.
+var unmanagedBlocked = map[int]bool{
+	hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true,
+	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdErrorPages: true, hdLogs: true,
+}
+
+// selectAction moves the menu cursor to action, reporting whether it is
+// offered for this host.
+func (s *hostDetailScreen) selectAction(action int) bool {
+	for i, a := range s.actions {
+		if a == action {
+			s.menu.cursor = i
+			return true
 		}
 	}
-	s.menu = newSimpleMenu(items)
+	return false
+}
+
+func redirectDesc(h nginx.ListedHost) string {
+	if h.Mode != nginx.ModeRedirect {
+		return ""
+	}
+	return fmt.Sprintf("%d → %s", h.Redirect.Code, h.Redirect.Target)
+}
+
+func aliasesDesc(h nginx.ListedHost) string {
+	if len(h.ServerAlias) == 0 {
+		return mutedStyle.Render("(no additional names)")
+	}
+	return strings.Join(h.ServerAlias, " ")
 }
 
 func errorPagesDesc(h nginx.ListedHost) string {
@@ -101,17 +167,15 @@ func (s *hostDetailScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
-			return s.dispatch(s.menu.Selected())
+			if sel := s.menu.Selected(); sel < len(s.actions) {
+				return s.dispatch(s.actions[sel])
+			}
 		}
 	}
 	return s, nil
 }
 
 func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
-	unmanagedBlocked := map[int]bool{
-		hdAddPath: true, hdAddCustomPath: true, hdSSL: true,
-		hdWebSocket: true, hdProxy: true, hdAccessList: true, hdErrorPages: true, hdLogs: true,
-	}
 	if !s.host.Managed && unmanagedBlocked[choice] {
 		return newResultScreen(s.deps, "Unmanaged Host", false,
 			"This host's configuration was not generated by GoNix and cannot be edited automatically. Use \"View Configuration\" to inspect it, or edit it manually with a text editor.",
@@ -121,6 +185,10 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 	switch choice {
 	case hdToggleEnable:
 		return s.toggleEnable()
+	case hdRedirect:
+		return newRedirectWizard(s.deps, s.host), nil
+	case hdAliases:
+		return newAliasesWizard(s.deps, s.host), nil
 	case hdViewConfig:
 		return s.viewConfig()
 	case hdDelete:
@@ -386,5 +454,53 @@ func newLogsWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 			return newResultScreen(deps, "Logs", false, err.Error(), newHostDetailScreen(deps, h)), nil
 		}
 		return newResultScreen(deps, "Logs", true, "Log settings updated.", newHostDetailScreen(deps, h)), nil
+	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil })
+}
+
+// --- Redirect Configuration ---
+
+func newRedirectWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
+	return newWizard("Redirect Configuration — "+h.ServerName, redirectFields(h.Redirect, nil), func(v map[string]string) (screen, tea.Cmd) {
+		host, err := deps.Manager.GetHost(h.FileName)
+		if err != nil {
+			return newResultScreen(deps, "Redirect Configuration", false, err.Error(), newHostDetailScreen(deps, h)), nil
+		}
+		host.Redirect = redirectFromValues(v)
+		if _, err := deps.HostService.UpdateHost(backgroundCtx(), host); err != nil {
+			return newResultScreen(deps, "Redirect Configuration", false, err.Error(), newHostDetailScreen(deps, h)), nil
+		}
+		return newResultScreen(deps, "Redirect Configuration", true,
+			fmt.Sprintf("Requests to %s now redirect to %s.", host.ServerName, host.Redirect.ReturnURL()),
+			newHostDetailScreen(deps, h)), nil
+	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil })
+}
+
+// --- Domain Names (server_name aliases) ---
+
+func newAliasesWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
+	fields := []wizardField{
+		{
+			Key:   "aliases",
+			Label: "Additional domain names for " + h.ServerName + " (space-separated, empty for none):",
+			Kind:  fieldText, Placeholder: "www." + h.ServerName, Default: strings.Join(h.ServerAlias, " "),
+			Validate: func(v string) error {
+				_, err := hosts.ParseAliases(v, h.ServerName)
+				return err
+			},
+		},
+	}
+	return newWizard("Domain Names — "+h.ServerName, fields, func(v map[string]string) (screen, tea.Cmd) {
+		host, err := deps.Manager.GetHost(h.FileName)
+		if err != nil {
+			return newResultScreen(deps, "Domain Names", false, err.Error(), newHostDetailScreen(deps, h)), nil
+		}
+		host.ServerAlias, err = hosts.ParseAliases(v["aliases"], host.ServerName)
+		if err != nil {
+			return newResultScreen(deps, "Domain Names", false, err.Error(), newHostDetailScreen(deps, h)), nil
+		}
+		if _, err := deps.HostService.UpdateHost(backgroundCtx(), host); err != nil {
+			return newResultScreen(deps, "Domain Names", false, err.Error(), newHostDetailScreen(deps, h)), nil
+		}
+		return newResultScreen(deps, "Domain Names", true, "Domain names updated.", newHostDetailScreen(deps, h)), nil
 	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil })
 }

@@ -32,3 +32,20 @@ func TestValidatePath(t *testing.T) {
 		}
 	}
 }
+
+func TestParseAliases(t *testing.T) {
+	got, err := ParseAliases(" www.example.com, example.org  www.example.com EXAMPLE.com", "example.com")
+	if err != nil {
+		t.Fatalf("ParseAliases: %v", err)
+	}
+	want := []string{"www.example.com", "example.org"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("ParseAliases = %v, want %v", got, want)
+	}
+	if got, err := ParseAliases("", "example.com"); err != nil || len(got) != 0 {
+		t.Errorf("ParseAliases(\"\") = %v, %v; want no aliases", got, err)
+	}
+	if _, err := ParseAliases("www.example.com bad_name", "example.com"); err == nil {
+		t.Error("expected an error for an invalid alias")
+	}
+}

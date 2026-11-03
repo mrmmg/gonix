@@ -10,7 +10,7 @@ server {
     server_name {{ .Host.ServerName }}{{ range .Host.ServerAlias }} {{ . }}{{ end }};
 
 {{- if .Host.SSL.Enabled }}
-{{- if .Host.SSL.ForceHTTPS }}
+{{- if and .Host.SSL.ForceHTTPS (ne (printf "%v" .Host.Mode) "redirect") }}
 
     if ($scheme != "https") {
         return 301 https://$host$request_uri;
@@ -47,6 +47,12 @@ server {
 
     root {{ .Host.Root }};
     index index.html index.htm;
+{{- end }}
+
+{{- if eq (printf "%v" .Host.Mode) "redirect" }}
+
+    # GoNix redirect host
+    return {{ .Host.Redirect.Code }} {{ .Host.Redirect.ReturnURL }};
 {{- end }}
 
 {{ range .Host.Locations }}

@@ -50,6 +50,9 @@ func (s *hostsListScreen) reload() {
 		if h.BrokenSymlink {
 			managed += dangerStyle.Render(" [broken symlink]")
 		}
+		if h.Managed && h.Mode == nginx.ModeRedirect {
+			managed += mutedStyle.Render(" → " + h.Redirect.Target)
+		}
 		items = append(items, menuItem{
 			title: fmt.Sprintf("%s %-30s", dot, h.ServerName),
 			desc:  fmt.Sprintf("%-6s %s%s", proto, state, managed),

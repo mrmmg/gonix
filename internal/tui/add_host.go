@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -24,10 +25,20 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 			Validate:    func(v string) error { return hosts.ValidateDomain(v) },
 		},
 		{
+			Key:         "aliases",
+			Label:       "Additional domain names (optional, space-separated, e.g. www.example.com):",
+			Kind:        fieldText,
+			Placeholder: "www.example.com",
+			Validate: func(v string) error {
+				_, err := hosts.ParseAliases(v, "")
+				return err
+			},
+		},
+		{
 			Key:     "mode",
 			Label:   "Host mode:",
 			Kind:    fieldChoice,
-			Options: []string{"Reverse Proxy", "Direct / Static"},
+			Options: []string{modeReverseProxy, modeStatic, modeRedirect},
 		},
 		// --- Reverse proxy questions ---
 		{
@@ -77,13 +88,16 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 			Key: "root", Label: "Root directory to serve:", Kind: fieldText,
 			Placeholder: "/var/www/example.com",
 			Validate:    requireNonEmpty("root directory"),
-			ShowIf:      func(v map[string]string) bool { return v["mode"] == "Direct / Static" },
+			ShowIf:      func(v map[string]string) bool { return v["mode"] == modeStatic },
 		},
+	}
+	fields = append(fields, redirectFields(nginx.RedirectConfig{Code: 301, PreservePath: true}, isRedirect)...)
+	fields = append(fields, []wizardField{
 		// --- SSL ---
 		{
 			Key: "ssl_enable", Label: "Enable SSL for this host?", Kind: fieldBool,
 		},
-	}
+	}...)
 
 	// The certificate choice step is appended dynamically below because its
 	// options depend on what's actually present on disk.
@@ -106,7 +120,8 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 		},
 		wizardField{
 			Key: "ssl_force", Label: "Redirect HTTP to HTTPS?", Kind: fieldBool, BoolDefault: true,
-			ShowIf: func(v map[string]string) bool { return v["ssl_enable"] == "yes" },
+			// A redirect host already sends HTTP straight to its target.
+			ShowIf: func(v map[string]string) bool { return v["ssl_enable"] == "yes" && !isRedirect(v) },
 		},
 	)
 
@@ -114,6 +129,7 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 	if opts := errorPagesOptions(deps); len(opts) > 1 {
 		fields = append(fields, wizardField{
 			Key: "error_pages", Label: "Error pages snippet:", Kind: fieldChoice, Options: opts,
+			ShowIf: func(v map[string]string) bool { return !isRedirect(v) },
 		})
 	}
 
@@ -122,7 +138,65 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 	}, func() (screen, tea.Cmd) { return nil, navPop() })
 }
 
-func isReverseProxy(v map[string]string) bool { return v["mode"] == "Reverse Proxy" }
+// Host mode choices offered by the Add New Host wizard.
+const (
+	modeReverseProxy = "Reverse Proxy"
+	modeStatic       = "Direct / Static"
+	modeRedirect     = "Redirect"
+)
+
+func isReverseProxy(v map[string]string) bool { return v["mode"] == modeReverseProxy }
+func isRedirect(v map[string]string) bool     { return v["mode"] == modeRedirect }
+
+// redirectFields asks for a redirect host's target, status code and path
+// handling, prefilled from current. showIf may be nil.
+func redirectFields(current nginx.RedirectConfig, showIf func(map[string]string) bool) []wizardField {
+	codes := make([]string, len(nginx.RedirectCodes))
+	for i, c := range nginx.RedirectCodes {
+		codes[i] = strconv.Itoa(c) + " " + redirectCodeLabel(c)
+	}
+	return []wizardField{
+		{
+			Key: "redirect_target", Label: "Redirect to (domain or URL, e.g. example.com or https://example.com/new):",
+			Kind: fieldText, Placeholder: "https://example.com", Default: current.Target,
+			Validate: func(v string) error { return nginx.ValidateRedirectTarget(nginx.NormalizeRedirectTarget(v)) },
+			ShowIf:   showIf,
+		},
+		{
+			Key: "redirect_code", Label: "Redirect status code:", Kind: fieldChoice, Options: codes,
+			ChoiceDefault: strconv.Itoa(current.Code) + " " + redirectCodeLabel(current.Code),
+			ShowIf:        showIf,
+		},
+		{
+			Key: "redirect_preserve", Label: "Keep the requested path and query string (e.g. /blog?id=5)?",
+			Kind: fieldBool, BoolDefault: current.PreservePath, ShowIf: showIf,
+		},
+	}
+}
+
+func redirectCodeLabel(code int) string {
+	switch code {
+	case 301:
+		return "(permanent)"
+	case 302:
+		return "(temporary)"
+	case 307:
+		return "(temporary, keeps method)"
+	case 308:
+		return "(permanent, keeps method)"
+	}
+	return ""
+}
+
+// redirectFromValues builds a RedirectConfig from redirectFields answers.
+func redirectFromValues(v map[string]string) nginx.RedirectConfig {
+	code, _ := strconv.Atoi(strings.Fields(v["redirect_code"] + " 301")[0])
+	return nginx.RedirectConfig{
+		Target:       nginx.NormalizeRedirectTarget(v["redirect_target"]),
+		Code:         code,
+		PreservePath: v["redirect_preserve"] == "yes",
+	}
+}
 
 func requireNonEmpty(label string) func(string) error {
 	return func(v string) error {
@@ -150,10 +224,20 @@ func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 		ErrorLog:   true,
 	}
 
-	if v["mode"] == "Direct / Static" {
+	aliases, err := hosts.ParseAliases(v["aliases"], v["domain"])
+	if err != nil {
+		return newResultScreen(deps, "Add New Host", false, err.Error(), newMainMenu(deps)), nil
+	}
+	h.ServerAlias = aliases
+
+	switch v["mode"] {
+	case modeStatic:
 		h.Mode = nginx.ModeStatic
 		h.Root = v["root"]
-	} else {
+	case modeRedirect:
+		h.Mode = nginx.ModeRedirect
+		h.Redirect = redirectFromValues(v)
+	default:
 		h.Mode = nginx.ModeReverseProxy
 		port, _ := strconv.Atoi(v["upstream_port"])
 		loc := nginx.Location{
@@ -192,8 +276,7 @@ func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 		h.ErrorPagesSnippet = sn
 	}
 
-	_, err := deps.HostService.CreateHost(backgroundCtx(), h)
-	if err != nil {
+	if _, err := deps.HostService.CreateHost(backgroundCtx(), h); err != nil {
 		return newResultScreen(deps, "Add New Host", false, err.Error(), newMainMenu(deps)), nil
 	}
 	_ = deps.HostService.EnableHost(backgroundCtx(), h.ServerName)

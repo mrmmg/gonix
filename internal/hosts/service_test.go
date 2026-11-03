@@ -161,3 +161,32 @@ func TestDeleteHostNeverDeletesOnDisableAlone(t *testing.T) {
 	}
 	_ = enabled
 }
+
+func TestCreateRedirectHost(t *testing.T) {
+	svc, available, _ := newTestService(t, true)
+	h := nginx.Host{
+		ServerName:  "domain.net",
+		ServerAlias: []string{"www.domain.net"},
+		Mode:        nginx.ModeRedirect,
+		Listen:      80,
+		Redirect:    nginx.RedirectConfig{Target: "https://domain.com", Code: 301, PreservePath: true},
+	}
+	if _, err := svc.CreateHost(context.Background(), h); err != nil {
+		t.Fatalf("CreateHost: %v", err)
+	}
+	got, err := svc.Manager.GetHost("domain.net")
+	if err != nil {
+		t.Fatalf("GetHost: %v", err)
+	}
+	if got.Mode != nginx.ModeRedirect || got.Redirect != h.Redirect {
+		t.Errorf("parsed host = %+v, want redirect %+v", got, h.Redirect)
+	}
+	if _, err := os.Stat(filepath.Join(available, "domain.net")); err != nil {
+		t.Fatalf("expected config file: %v", err)
+	}
+
+	h.ServerAlias = []string{"not valid"}
+	if _, err := svc.UpdateHost(context.Background(), h); err == nil {
+		t.Error("expected UpdateHost to reject an invalid alias")
+	}
+}

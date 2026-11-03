@@ -27,6 +27,7 @@ var (
 	reProxyReadTO   = regexp.MustCompile(`(?m)^\s*proxy_read_timeout\s+([^;]+);`)
 	reProxySendTO   = regexp.MustCompile(`(?m)^\s*proxy_send_timeout\s+([^;]+);`)
 	reMaxBodySize   = regexp.MustCompile(`(?m)^\s*client_max_body_size\s+([^;]+);`)
+	reRedirect      = regexp.MustCompile(`(?m)^\s*# GoNix redirect host\s*\n\s*return\s+(\d{3})\s+([^;]+);`)
 	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
 
@@ -96,6 +97,16 @@ func ParseManagedHost(content string) (Host, error) {
 	if m := reRoot.FindStringSubmatch(content); m != nil {
 		h.Root = strings.TrimSpace(m[1])
 		h.Mode = ModeStatic
+	}
+	if m := reRedirect.FindStringSubmatch(content); m != nil {
+		h.Mode = ModeRedirect
+		h.Redirect.Code, _ = strconv.Atoi(m[1])
+		target := strings.TrimSpace(m[2])
+		if t, ok := strings.CutSuffix(target, "$request_uri"); ok {
+			h.Redirect.PreservePath = true
+			target = t
+		}
+		h.Redirect.Target = target
 	}
 
 	if m := reAccessLog.FindStringSubmatch(content); m != nil {

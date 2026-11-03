@@ -3,6 +3,8 @@ package nginx
 import (
 	"strings"
 	"testing"
+
+	"github.com/mrmmg/gonix/internal/nginxtest"
 )
 
 func TestRenderReverseProxyHost(t *testing.T) {
@@ -152,4 +154,31 @@ func TestRenderAndParseErrorPagesSnippet(t *testing.T) {
 	if _, err := r.Render(h); err == nil {
 		t.Error("expected an error for an invalid snippet name")
 	}
+}
+
+func TestReverseProxyHostPassesRealNginx(t *testing.T) {
+	p := nginxtest.New(t)
+	r := newTestRenderer(t)
+	cert, key := p.SelfSignedCert(t, "example.com")
+	h := Host{
+		ServerName: "example.com",
+		Mode:       ModeReverseProxy,
+		Listen:     80,
+		ListenSSL:  443,
+		SSL:        SSLConfig{Enabled: true, CertFile: cert, KeyFile: key, HTTP2: true, ForceHTTPS: true},
+		Locations: []Location{
+			{Path: "/", Proxy: &ProxyConfig{
+				UpstreamScheme: "http", UpstreamHost: "127.0.0.1", UpstreamPort: 8080, HTTPVersion: "1.1",
+				ForwardHost: true, ForwardFor: true, ForwardProto: true, WebSocket: true,
+				ConnectTimeout: "60s", ReadTimeout: "60s", SendTimeout: "60s", MaxBodySize: "10m",
+			}},
+			{Path: "/custom/", IsCustom: true, CustomConfig: "        return 200 'ok';"},
+		},
+	}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	p.AddSite(t, "example.com", out)
+	p.Test(t)
 }

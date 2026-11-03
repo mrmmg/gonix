@@ -2,7 +2,11 @@
 // operations and validator used to manage Nginx virtual hosts.
 package nginx
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+	"strings"
+)
 
 // HostMode describes the high level purpose of a virtual host.
 type HostMode string
@@ -10,7 +14,69 @@ type HostMode string
 const (
 	ModeReverseProxy HostMode = "reverse_proxy"
 	ModeStatic       HostMode = "static"
+	ModeRedirect     HostMode = "redirect"
 )
+
+// RedirectCodes are the status codes a redirect host may answer with.
+var RedirectCodes = []int{301, 302, 307, 308}
+
+// RedirectConfig holds the settings of a host in ModeRedirect, which
+// answers every request with a redirect to another URL.
+type RedirectConfig struct {
+	Target       string // absolute http(s) URL, e.g. https://example.com
+	Code         int    // one of RedirectCodes
+	PreservePath bool   // append the original path and query ($request_uri)
+}
+
+// ReturnURL is the URL rendered into the `return` directive.
+func (r RedirectConfig) ReturnURL() string {
+	if !r.PreservePath {
+		return r.Target
+	}
+	return strings.TrimSuffix(r.Target, "/") + "$request_uri"
+}
+
+// NormalizeRedirectTarget turns a bare domain such as "example.com" into
+// "https://example.com"; anything with a scheme is returned trimmed but
+// otherwise unchanged.
+func NormalizeRedirectTarget(target string) string {
+	target = strings.TrimSpace(target)
+	if target != "" && !strings.Contains(target, "://") {
+		target = "https://" + target
+	}
+	return target
+}
+
+// ValidateRedirectTarget checks that target is an absolute http(s) URL that
+// can be rendered into a `return` directive without breaking its syntax.
+func ValidateRedirectTarget(target string) error {
+	if target == "" {
+		return fmt.Errorf("redirect target must not be empty")
+	}
+	if strings.ContainsAny(target, " \t\n;{}\"'$#\\") {
+		return fmt.Errorf("redirect target %q contains characters that are not allowed", target)
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		return fmt.Errorf("redirect target %q is not a valid URL: %w", target, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("redirect target %q must start with http:// or https://", target)
+	}
+	if u.Hostname() == "" {
+		return fmt.Errorf("redirect target %q has no host", target)
+	}
+	return nil
+}
+
+func validRedirectCode(code int) bool {
+	for _, c := range RedirectCodes {
+		if c == code {
+			return true
+		}
+	}
+	return false
+}
 
 // KeyType identifies the private key algorithm used by a certificate.
 type KeyType string
@@ -68,9 +134,10 @@ type Host struct {
 	ServerName     string // primary domain, also used as the config file name
 	ServerAlias    []string
 	Mode           HostMode
-	Listen         int    // plain HTTP port, normally 80
-	ListenSSL      int    // HTTPS port, normally 443
-	Root           string // used when Mode == ModeStatic
+	Listen         int            // plain HTTP port, normally 80
+	ListenSSL      int            // HTTPS port, normally 443
+	Root           string         // used when Mode == ModeStatic
+	Redirect       RedirectConfig // used when Mode == ModeRedirect
 	SSL            SSLConfig
 	Locations      []Location
 	AccessLog      bool
@@ -103,6 +170,14 @@ func (h Host) Validate() error {
 	}
 	if h.Mode == ModeStatic && h.Root == "" {
 		return fmt.Errorf("static host %q must have a root directory", h.ServerName)
+	}
+	if h.Mode == ModeRedirect {
+		if err := ValidateRedirectTarget(h.Redirect.Target); err != nil {
+			return fmt.Errorf("redirect host %q: %w", h.ServerName, err)
+		}
+		if !validRedirectCode(h.Redirect.Code) {
+			return fmt.Errorf("redirect host %q: status code %d is not one of %v", h.ServerName, h.Redirect.Code, RedirectCodes)
+		}
 	}
 	for _, loc := range h.Locations {
 		if loc.Path == "" {
