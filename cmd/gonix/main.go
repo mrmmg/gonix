@@ -19,6 +19,7 @@ import (
 )
 
 func main() {
+	cli.Version = tui.Version
 	// "gonix --instance staging" opens the TUI for that instance; CLI
 	// commands handle --instance themselves.
 	if !cli.IsCommand(os.Args[1:]) {

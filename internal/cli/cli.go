@@ -127,6 +127,7 @@ func find(args []string) (command, []string, bool) {
 // Run executes the command in args and returns the process exit code.
 func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig string) int {
 	opts, rest := splitGlobals(args)
+	mcpBuild, mcpConfig = build, defaultConfig
 	if len(rest) == 0 || rest[0] == "help" {
 		printHelp(stdout, rest)
 		return 0
@@ -190,7 +191,7 @@ func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig s
 
 // needsServices is false for commands that work without a configuration.
 func needsServices(c command) bool {
-	return !strings.HasPrefix(c.path, "skill") && c.path != "instances"
+	return !strings.HasPrefix(c.path, "skill") && c.path != "instances" && c.path != "mcp"
 }
 
 // done reports a successful write: the plan in dry-run mode, else msg.
