@@ -234,7 +234,7 @@ if command -v logrotate >/dev/null 2>&1; then
     endscript
 }
 
-/var/log/gonix/audit.log {
+/var/log/gonix/*audit.log {
     weekly
     rotate 12
     missingok

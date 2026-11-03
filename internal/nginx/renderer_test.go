@@ -3,6 +3,8 @@ package nginx
 import (
 	"strings"
 	"testing"
+
+	"github.com/mrmmg/gonix/internal/nginxtest"
 )
 
 func TestRenderReverseProxyHost(t *testing.T) {
@@ -151,5 +153,85 @@ func TestRenderAndParseErrorPagesSnippet(t *testing.T) {
 	h.ErrorPagesSnippet = "../evil"
 	if _, err := r.Render(h); err == nil {
 		t.Error("expected an error for an invalid snippet name")
+	}
+}
+
+func TestReverseProxyHostPassesRealNginx(t *testing.T) {
+	p := nginxtest.New(t)
+	r := newTestRenderer(t)
+	cert, key := p.SelfSignedCert(t, "example.com")
+	h := Host{
+		ServerName: "example.com",
+		Mode:       ModeReverseProxy,
+		Listen:     80,
+		ListenSSL:  443,
+		SSL:        SSLConfig{Enabled: true, CertFile: cert, KeyFile: key, HTTP2: true, ForceHTTPS: true},
+		Locations: []Location{
+			{Path: "/", Proxy: &ProxyConfig{
+				UpstreamScheme: "http", UpstreamHost: "127.0.0.1", UpstreamPort: 8080, HTTPVersion: "1.1",
+				ForwardHost: true, ForwardFor: true, ForwardProto: true, WebSocket: true,
+				ConnectTimeout: "60s", ReadTimeout: "60s", SendTimeout: "60s", MaxBodySize: "10m",
+			}},
+			{Path: "/custom/", IsCustom: true, CustomConfig: "        return 200 'ok';"},
+		},
+	}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	p.AddSite(t, "example.com", out)
+	p.Test(t)
+}
+
+// Regression test: location-level access lists used to be mistaken for
+// host-level ones, because the server-level section of the file was never
+// cut at the first location block.
+func TestParseLocationAccessListIsNotHostLevel(t *testing.T) {
+	r := newTestRenderer(t)
+	h := Host{
+		ServerName: "example.com", Mode: ModeReverseProxy, Listen: 80,
+		Locations: []Location{{Path: "/admin/", AccessListName: "admins", Proxy: &ProxyConfig{
+			UpstreamScheme: "http", UpstreamHost: "127.0.0.1", UpstreamPort: 8080, HTTPVersion: "1.1"}}},
+	}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseManagedHost(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.AccessListName != "" {
+		t.Errorf("host-level AccessListName = %q, want empty", parsed.AccessListName)
+	}
+	if parsed.Locations[0].AccessListName != "admins" {
+		t.Errorf("location AccessListName = %q, want admins", parsed.Locations[0].AccessListName)
+	}
+}
+
+// Regression test: `error_log off;` makes Nginx log to a file named "off".
+func TestDisabledErrorLogUsesDevNull(t *testing.T) {
+	r := newTestRenderer(t)
+	h := Host{ServerName: "example.com", Mode: ModeStatic, Root: "/srv", Listen: 80, AccessLog: false, ErrorLog: false}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "error_log off;") || !strings.Contains(out, "error_log /dev/null;") {
+		t.Errorf("disabled error log must render /dev/null:\n%s", out)
+	}
+	for _, content := range []string{out, strings.Replace(out, "error_log /dev/null;", "error_log off;", 1)} {
+		parsed, err := ParseManagedHost(content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if parsed.ErrorLog || parsed.AccessLog {
+			t.Errorf("logs should parse as disabled: access=%v error=%v", parsed.AccessLog, parsed.ErrorLog)
+		}
+	}
+	h.ErrorLog = true
+	out, _ = r.Render(h)
+	if parsed, _ := ParseManagedHost(out); !parsed.ErrorLog {
+		t.Error("enabled error log parsed as disabled")
 	}
 }

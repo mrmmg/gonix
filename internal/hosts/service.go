@@ -9,6 +9,7 @@ import (
 	"github.com/mrmmg/gonix/internal/audit"
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/snippet"
 )
 
 // ConfigTester is satisfied by *nginx.Validator; it is an interface here so
@@ -32,6 +33,8 @@ type Service struct {
 	Reloader Reloader // may be nil; when nil, Apply validates but does not reload
 	Backups  *backup.Backuper
 	Audit    *audit.Logger
+	// DryRun, when set, records every change instead of making it.
+	DryRun *snippet.Plan
 }
 
 // ApplyResult describes what happened when applying a host change.
@@ -46,6 +49,15 @@ type ApplyResult struct {
 func (s *Service) applyAndValidate(ctx context.Context, h nginx.Host, action string) (ApplyResult, error) {
 	fileName := h.ServerName
 	availablePath := filepath.Join(s.Manager.SitesAvailable, fileName)
+
+	if s.DryRun != nil {
+		content, err := s.Manager.Renderer.Render(h)
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		s.DryRun.RecordFile(availablePath, &content)
+		return ApplyResult{}, nil
+	}
 
 	snap, err := s.Backups.Save(fileName, availablePath)
 	if err != nil {
@@ -108,6 +120,9 @@ func (s *Service) CreateHost(ctx context.Context, h nginx.Host) (ApplyResult, er
 	if err := ValidateDomain(h.ServerName); err != nil {
 		return ApplyResult{}, err
 	}
+	if err := validateAliases(h.ServerAlias); err != nil {
+		return ApplyResult{}, err
+	}
 	if err := h.Validate(); err != nil {
 		return ApplyResult{}, err
 	}
@@ -116,6 +131,9 @@ func (s *Service) CreateHost(ctx context.Context, h nginx.Host) (ApplyResult, er
 
 // UpdateHost writes changes to an existing host, applying them safely.
 func (s *Service) UpdateHost(ctx context.Context, h nginx.Host) (ApplyResult, error) {
+	if err := validateAliases(h.ServerAlias); err != nil {
+		return ApplyResult{}, err
+	}
 	if err := h.Validate(); err != nil {
 		return ApplyResult{}, err
 	}
@@ -124,6 +142,10 @@ func (s *Service) UpdateHost(ctx context.Context, h nginx.Host) (ApplyResult, er
 
 // EnableHost creates the sites-enabled symlink and reloads Nginx.
 func (s *Service) EnableHost(ctx context.Context, fileName string) error {
+	if s.DryRun != nil {
+		s.DryRun.RecordNote("enable host " + fileName)
+		return nil
+	}
 	if err := s.Manager.Enable(fileName); err != nil {
 		s.audit("host_enabled", fileName, audit.ResultFailure, err)
 		return err
@@ -140,6 +162,10 @@ func (s *Service) EnableHost(ctx context.Context, fileName string) error {
 // DisableHost removes the sites-enabled symlink and reloads Nginx. The
 // sites-available file is never touched.
 func (s *Service) DisableHost(ctx context.Context, fileName string) error {
+	if s.DryRun != nil {
+		s.DryRun.RecordNote("disable host " + fileName)
+		return nil
+	}
 	if err := s.Manager.Disable(fileName); err != nil {
 		s.audit("host_disabled", fileName, audit.ResultFailure, err)
 		return err
@@ -158,6 +184,11 @@ func (s *Service) DisableHost(ctx context.Context, fileName string) error {
 // reloads Nginx.
 func (s *Service) DeleteHost(ctx context.Context, fileName string) error {
 	availablePath := filepath.Join(s.Manager.SitesAvailable, fileName)
+	if s.DryRun != nil {
+		s.DryRun.RecordNote("disable host " + fileName)
+		s.DryRun.RecordFile(availablePath, nil)
+		return nil
+	}
 	if _, err := s.Backups.Save(fileName, availablePath); err != nil {
 		return fmt.Errorf("creating backup before delete: %w", err)
 	}
@@ -172,6 +203,15 @@ func (s *Service) DeleteHost(ctx context.Context, fileName string) error {
 		}
 	}
 	s.audit("host_deleted", fileName, audit.ResultSuccess, nil)
+	return nil
+}
+
+func validateAliases(aliases []string) error {
+	for _, a := range aliases {
+		if err := ValidateDomain(a); err != nil {
+			return fmt.Errorf("additional server name: %w", err)
+		}
+	}
 	return nil
 }
 

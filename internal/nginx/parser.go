@@ -21,12 +21,20 @@ var (
 	reErrorLog      = regexp.MustCompile(`(?m)^\s*error_log\s+([^;]+);`)
 	reAuthUserFile  = regexp.MustCompile(`(?m)^\s*auth_basic_user_file\s+([^;]+);`)
 	reLocationStart = regexp.MustCompile(`^\s*location\s+(\S+)\s*\{`)
+	reFirstLocation = regexp.MustCompile(`(?m)^\s*location\s+\S+\s*\{`)
 	reProxyPass     = regexp.MustCompile(`(?m)^\s*proxy_pass\s+([^;]+);`)
 	reProxyHTTPVer  = regexp.MustCompile(`(?m)^\s*proxy_http_version\s+([^;]+);`)
 	reProxyConnTO   = regexp.MustCompile(`(?m)^\s*proxy_connect_timeout\s+([^;]+);`)
 	reProxyReadTO   = regexp.MustCompile(`(?m)^\s*proxy_read_timeout\s+([^;]+);`)
 	reProxySendTO   = regexp.MustCompile(`(?m)^\s*proxy_send_timeout\s+([^;]+);`)
 	reMaxBodySize   = regexp.MustCompile(`(?m)^\s*client_max_body_size\s+([^;]+);`)
+	reRedirect      = regexp.MustCompile(`(?m)^\s*# GoNix redirect host\s*\n\s*return\s+(\d{3})\s+([^;]+);`)
+	reIPListInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + IPListFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	rePresetInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + PresetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	reHTTP2On       = regexp.MustCompile(`(?m)^\s*http2\s+on\s*;`)
+	reRateLimitInc  = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + RateLimitFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	reCountryInc    = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + CountryListFilePrefix + `([A-Za-z0-9_]+)\.conf\s*;`)
+	reSatisfyAny    = regexp.MustCompile(`(?m)^\s*satisfy\s+any\s*;`)
 	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
 
@@ -77,6 +85,10 @@ func ParseManagedHost(content string) (Host, error) {
 	}
 	for _, m := range reListen.FindAllStringSubmatch(content, -1) {
 		port, _ := strconv.Atoi(m[1])
+		if strings.Contains(m[2], "quic") {
+			h.SSL.HTTP3 = true
+			continue
+		}
 		if strings.Contains(m[2], "ssl") {
 			h.ListenSSL = port
 			h.SSL.Enabled = true
@@ -97,6 +109,16 @@ func ParseManagedHost(content string) (Host, error) {
 		h.Root = strings.TrimSpace(m[1])
 		h.Mode = ModeStatic
 	}
+	if m := reRedirect.FindStringSubmatch(content); m != nil {
+		h.Mode = ModeRedirect
+		h.Redirect.Code, _ = strconv.Atoi(m[1])
+		target := strings.TrimSpace(m[2])
+		if t, ok := strings.CutSuffix(target, "$request_uri"); ok {
+			h.Redirect.PreservePath = true
+			target = t
+		}
+		h.Redirect.Target = target
+	}
 
 	if m := reAccessLog.FindStringSubmatch(content); m != nil {
 		h.AccessLog = strings.TrimSpace(m[1]) != "off"
@@ -104,7 +126,9 @@ func ParseManagedHost(content string) (Host, error) {
 		h.AccessLog = false
 	}
 	if m := reErrorLog.FindStringSubmatch(content); m != nil {
-		h.ErrorLog = strings.TrimSpace(m[1]) != "off"
+		// Older GoNix versions wrote "off", which Nginx takes as a file name.
+		target := strings.Fields(m[1])[0]
+		h.ErrorLog = target != "off" && target != "/dev/null"
 	} else if strings.Contains(content, "error_log off;") {
 		h.ErrorLog = false
 	}
@@ -112,7 +136,7 @@ func ParseManagedHost(content string) (Host, error) {
 	// Host-level auth_basic_user_file and the error pages include appear
 	// before the first location block; anything after belongs to a location.
 	serverLevel := content
-	if idx := reLocationStart.FindStringIndex(content); idx != nil {
+	if idx := reFirstLocation.FindStringIndex(content); idx != nil {
 		serverLevel = content[:idx[0]]
 	}
 	if m := reAuthUserFile.FindStringSubmatch(serverLevel); m != nil {
@@ -120,6 +144,23 @@ func ParseManagedHost(content string) (Host, error) {
 	}
 	if m := reErrorPagesInc.FindStringSubmatch(serverLevel); m != nil {
 		h.ErrorPagesSnippet = m[1]
+	}
+	if m := reIPListInc.FindStringSubmatch(serverLevel); m != nil {
+		h.IPListName = m[1]
+	}
+	h.SatisfyAny = reSatisfyAny.MatchString(serverLevel)
+	h.Maintenance = strings.Contains(serverLevel, "# GoNix maintenance mode")
+	if m := reRateLimitInc.FindStringSubmatch(serverLevel); m != nil {
+		h.RateLimit = m[1]
+	}
+	if m := reCountryInc.FindStringSubmatch(serverLevel); m != nil {
+		h.CountryList = m[1]
+	}
+	for _, m := range rePresetInc.FindAllStringSubmatch(serverLevel, -1) {
+		h.Presets = append(h.Presets, m[1])
+	}
+	if reHTTP2On.MatchString(serverLevel) {
+		h.SSL.HTTP2 = true
 	}
 
 	h.Locations = parseLocations(content)
@@ -201,6 +242,12 @@ func parseLocationBody(path, body string) Location {
 	if m := reAuthUserFile.FindStringSubmatch(body); m != nil {
 		loc.AccessListName = accessListNameFromPath(m[1])
 	}
+	if m := reIPListInc.FindStringSubmatch(body); m != nil {
+		loc.IPListName = m[1]
+	}
+	if m := reRateLimitInc.FindStringSubmatch(body); m != nil {
+		loc.RateLimit = m[1]
+	}
 	return loc
 }
 
@@ -214,6 +261,10 @@ func parseUpstreamURL(u string, pp *ProxyConfig) {
 		rest = strings.TrimPrefix(u, "http://")
 	}
 	pp.UpstreamScheme = scheme
+	if group, ok := strings.CutPrefix(rest, UpstreamGroupPrefix); ok && !strings.Contains(group, ":") {
+		pp.UpstreamGroup = group
+		return
+	}
 	host := rest
 	port := 80
 	if i := strings.LastIndexByte(rest, ':'); i >= 0 {

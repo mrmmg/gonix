@@ -10,6 +10,7 @@ import (
 // syntactically and semantically valid.
 type Validator struct {
 	BinaryPath string // e.g. "nginx" or "/usr/sbin/nginx"
+	ConfigFile string // passed with -c when set (a second Nginx instance)
 }
 
 // NewValidator returns a Validator using the given nginx binary path.
@@ -28,7 +29,11 @@ type Result struct {
 
 // Test runs `nginx -t` and reports whether the configuration is valid.
 func (v *Validator) Test(ctx context.Context) (Result, error) {
-	cmd := exec.CommandContext(ctx, v.BinaryPath, "-t")
+	args := []string{"-t"}
+	if v.ConfigFile != "" {
+		args = append(args, "-c", v.ConfigFile)
+	}
+	cmd := exec.CommandContext(ctx, v.BinaryPath, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		var exitErr *exec.ExitError

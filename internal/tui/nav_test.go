@@ -80,7 +80,9 @@ func TestEscFromBackupRestoreReturnsToHostDetail(t *testing.T) {
 	}
 
 	// Host Detail -> Backup / Restore.
-	root.stack[len(root.stack)-1].(*hostDetailScreen).menu.cursor = hdBackupRestore
+	if !root.stack[len(root.stack)-1].(*hostDetailScreen).selectAction(hdBackupRestore) {
+		t.Fatal("Backup / Restore is not offered for a reverse proxy host")
+	}
 	model = pressEnter(t, model)
 	if _, ok := root.stack[len(root.stack)-1].(*backupScreen); !ok {
 		t.Fatalf("expected backupScreen, got %T", root.stack[len(root.stack)-1])

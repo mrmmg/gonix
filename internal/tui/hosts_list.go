@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mrmmg/gonix/internal/health"
 	"github.com/mrmmg/gonix/internal/nginx"
 )
 
@@ -31,6 +33,7 @@ func (s *hostsListScreen) reload() {
 		return
 	}
 	s.hosts = hostList
+	down := downUpstreams(hostList)
 	items := make([]menuItem, 0, len(hostList)+1)
 	for _, h := range hostList {
 		dot := disabledDot
@@ -49,6 +52,15 @@ func (s *hostsListScreen) reload() {
 		}
 		if h.BrokenSymlink {
 			managed += dangerStyle.Render(" [broken symlink]")
+		}
+		if down[h.FileName] {
+			managed += dangerStyle.Render(" [upstream down]")
+		}
+		if h.Maintenance {
+			managed += dangerStyle.Render(" [maintenance]")
+		}
+		if h.Managed && h.Mode == nginx.ModeRedirect {
+			managed += mutedStyle.Render(" → " + h.Redirect.Target)
 		}
 		items = append(items, menuItem{
 			title: fmt.Sprintf("%s %-30s", dot, h.ServerName),
@@ -91,8 +103,29 @@ func (s *hostsListScreen) View(width, height int) string {
 	if s.loadErr != "" {
 		body += errorBoxStyle.Render(s.loadErr)
 	} else {
-		body += s.menu.View()
+		body += s.menu.ViewFit(body, height)
 	}
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Manage"}, {"r", "Refresh"}, {"Esc", "Back"}}
 	return renderFrame(width, height, "GONIX", body, help)
+}
+
+// downUpstreams dials every enabled host's upstreams concurrently and
+// reports, per host file, whether any of them refused the connection.
+func downUpstreams(hostList []nginx.ListedHost) map[string]bool {
+	var addrs []string
+	for _, h := range hostList {
+		if h.Enabled && h.Managed {
+			addrs = append(addrs, health.Upstreams(h.Host)...)
+		}
+	}
+	failed := health.Check(backgroundCtx(), addrs, 500*time.Millisecond)
+	down := map[string]bool{}
+	for _, h := range hostList {
+		for _, u := range health.Upstreams(h.Host) {
+			if _, bad := failed[u]; bad && h.Enabled && h.Managed {
+				down[h.FileName] = true
+			}
+		}
+	}
+	return down
 }

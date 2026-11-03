@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,9 +11,18 @@ import (
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
+	"github.com/mrmmg/gonix/internal/geoblock"
 	"github.com/mrmmg/gonix/internal/hosts"
+	"github.com/mrmmg/gonix/internal/iplist"
+	"github.com/mrmmg/gonix/internal/maintenance"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/presets"
+	"github.com/mrmmg/gonix/internal/ratelimit"
+	"github.com/mrmmg/gonix/internal/realip"
+	"github.com/mrmmg/gonix/internal/snippet"
+	"github.com/mrmmg/gonix/internal/streams"
 	"github.com/mrmmg/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/upstreams"
 )
 
 // testDeps builds a fully wired Deps against temporary directories, so the
@@ -56,6 +66,13 @@ func testDeps(t *testing.T) Deps {
 		Audit:    auditLogger,
 	}
 
+	ipListStore, err := iplist.NewStore(cfg.ErrorPages.SnippetsDirectory)
+	if err != nil {
+		t.Fatalf("iplist.NewStore: %v", err)
+	}
+	cfg.Nginx.HTTPSnippetsDir = t.TempDir()
+	writer := &snippet.Writer{Tester: okTester{}, Audit: auditLogger}
+
 	return Deps{
 		Config:      cfg,
 		Manager:     manager,
@@ -67,9 +84,26 @@ func testDeps(t *testing.T) Deps {
 			Tester:  nginx.NewValidator("nginx"),
 			Audit:   auditLogger,
 		},
-		SystemSvc: systemSvc,
-		Audit:     auditLogger,
-		Backups:   backups,
+		IPLists: &iplist.Service{Store: ipListStore, Manager: manager, Writer: writer},
+		RealIP:  &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
+		RateLimits: &ratelimit.Service{
+			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
+			Manager: manager, Writer: writer,
+		},
+		Upstreams: &upstreams.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Manager: manager, Writer: writer},
+		Streams: &streams.Service{
+			Dir: t.TempDir(), MainIncludeDir: t.TempDir(), ConfigDir: t.TempDir(),
+			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, Writer: writer,
+		},
+		GeoBlock: &geoblock.Service{
+			HTTPDir: cfg.Nginx.HTTPSnippetsDir, SnippetsDir: cfg.ErrorPages.SnippetsDirectory,
+			Database: cfg.GeoIP.Database, Manager: manager, Writer: writer,
+		},
+		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: svc, Writer: writer},
+		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
+		SystemSvc:   systemSvc,
+		Audit:       auditLogger,
+		Backups:     backups,
 	}
 }
 
@@ -103,5 +137,44 @@ func TestAppNavigatesMainMenuWithoutPanicking(t *testing.T) {
 		// Pop back to the main menu for the next iteration.
 		root = model.(*rootModel)
 		root.stack = []screen{newMainMenu(deps)}
+	}
+}
+
+func TestTitleShowsInstance(t *testing.T) {
+	deps := testDeps(t)
+	deps.Config.Instance = "staging"
+	defer func() { instanceLabel = "" }()
+	model := NewApp(deps)
+	model, _ = model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	if !strings.Contains(model.View(), "GONIX · staging") {
+		t.Error("title bar does not show the instance")
+	}
+}
+
+// Long menus scroll instead of pushing the frame past a small terminal.
+func TestLongMenusFitSmallTerminals(t *testing.T) {
+	deps := testDeps(t)
+	createTestHost(t, deps, "example.com")
+	listed, _ := deps.Manager.ListHosts()
+	detail := newHostDetailScreen(deps, listed[0])
+	main := newMainMenu(deps)
+	for _, s := range []struct {
+		name string
+		menu *simpleMenu
+		view func() string
+	}{
+		{"host detail", detail.menu, func() string { return detail.View(80, 24) }},
+		{"main menu", main.menu, func() string { return main.View(80, 24) }},
+	} {
+		for _, cursor := range []int{0, len(s.menu.items) / 2, len(s.menu.items) - 1} {
+			s.menu.cursor = cursor
+			view := s.view()
+			if lines := strings.Count(view, "\n") + 1; lines > 24 {
+				t.Errorf("%s with cursor %d renders %d lines on a 24-line terminal", s.name, cursor, lines)
+			}
+			if !strings.Contains(view, "▸ "+strings.TrimSpace(s.menu.items[cursor].title)) {
+				t.Errorf("%s: selected item %q not visible", s.name, s.menu.items[cursor].title)
+			}
+		}
 	}
 }

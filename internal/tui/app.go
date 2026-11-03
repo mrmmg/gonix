@@ -5,14 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/mrmmg/gonix/internal/accesslist"
-	"github.com/mrmmg/gonix/internal/audit"
-	"github.com/mrmmg/gonix/internal/backup"
-	"github.com/mrmmg/gonix/internal/config"
-	"github.com/mrmmg/gonix/internal/errorpages"
-	"github.com/mrmmg/gonix/internal/hosts"
-	"github.com/mrmmg/gonix/internal/nginx"
-	"github.com/mrmmg/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/app"
 )
 
 // Version is the GoNix release version, shown in the title bar. It
@@ -21,17 +14,7 @@ var Version = "0.1.0"
 
 // Deps bundles every backend dependency a screen might need. Screens must
 // only interact with Nginx/the filesystem through these, never directly.
-type Deps struct {
-	Config      *config.Config
-	Manager     *nginx.Manager
-	HostService *hosts.Service
-	Certs       string // certificate directory, screens call certificates.Scan themselves
-	AccessLists *accesslist.Store
-	ErrorPages  *errorpages.Service
-	SystemSvc   *system.Service
-	Audit       *audit.Logger
-	Backups     *backup.Backuper
-}
+type Deps = app.Services
 
 // screen is implemented by every full-page view in the application. It
 // mirrors tea.Model but returns the concrete screen type so the root model
@@ -70,6 +53,9 @@ type rootModel struct {
 // NewApp constructs the root Bubble Tea program model, starting at the main
 // menu.
 func NewApp(deps Deps) tea.Model {
+	if deps.Config != nil {
+		instanceLabel = deps.Config.Instance
+	}
 	m := &rootModel{deps: deps}
 	m.stack = []screen{newMainMenu(deps)}
 	return m

@@ -1,0 +1,109 @@
+# GoNix documentation site (Hugo + Hextra).
+#
+#   hugo server          live preview at http://localhost:1313/gonix/
+#   hugo --minify        production build into ./public
+#
+# This directory is a separate Go module (see go.mod) so it never becomes part
+# of the gonix binary or of `go ./...`.
+baseURL: https://mrmmg.github.io/gonix/
+title: GoNix
+enableRobotsTXT: true
+enableGitInfo: false
+disablePathToLower: false
+
+defaultContentLanguage: en
+defaultContentLanguageInSubdir: true
+
+module:
+  hugoVersion:
+    min: 0.158.0
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+languages:
+  en:
+    label: English
+    locale: en
+    contentDir: content/en
+    weight: 1
+    title: GoNix
+    params:
+      description: Manage Nginx from the terminal, without hiding it.
+    menu:
+      main:
+        - name: Documentation
+          pageRef: /docs
+          weight: 1
+        - name: CLI
+          pageRef: /docs/cli
+          weight: 2
+        - name: Search
+          weight: 3
+          params:
+            type: search
+        - name: GitHub
+          weight: 4
+          url: https://github.com/mrmmg/gonix
+          params:
+            icon: github
+  fa:
+    label: فارسی
+    locale: fa
+    direction: rtl
+    contentDir: content/fa
+    weight: 2
+    title: گونیکس
+    params:
+      description: Nginx را از ترمینال مدیریت کنید، بدون اینکه آن را قایم کنیم.
+    menu:
+      main:
+        - name: مستندات
+          pageRef: /docs
+          weight: 1
+        - name: خط فرمان
+          pageRef: /docs/cli
+          weight: 2
+        - name: جستجو
+          weight: 3
+          params:
+            type: search
+        - name: GitHub
+          weight: 4
+          url: https://github.com/mrmmg/gonix
+          params:
+            icon: github
+
+params:
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: images/logo.png
+      dark: images/logo-dark.png
+      width: 28
+      height: 28
+    width: normal
+  page:
+    width: normal
+  theme:
+    default: system
+    displayToggle: true
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: false
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: forward
+  toc:
+    displayTags: false

@@ -263,3 +263,13 @@ func TestTemplateModeMissingPagesAndPlaceholder(t *testing.T) {
 		t.Error("unexpected PlaceholderMissing")
 	}
 }
+
+// Maintenance mode exempts nginx.ErrorPageURIPrefix; both internal URIs
+// must stay under it or custom 503 pages break during maintenance.
+func TestErrorPageURIsShareMaintenanceExemptPrefix(t *testing.T) {
+	for _, uri := range []string{URIPrefix, TemplateURI} {
+		if !strings.HasPrefix(uri, nginx.ErrorPageURIPrefix) {
+			t.Errorf("%q does not start with nginx.ErrorPageURIPrefix %q", uri, nginx.ErrorPageURIPrefix)
+		}
+	}
+}

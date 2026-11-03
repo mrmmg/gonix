@@ -1,0 +1,101 @@
+/*
+ * GoNix brand colors, taken from the logo:
+ *   navy  #1a2b3d   green #1e9a35   cyan #5fc0d8   silver #a9b0b6
+ * Light mode: green is the accent on white, navy is the ink.
+ * Dark mode:  cyan is the accent on a deep navy background.
+ */
+:root {
+  --gx-navy: #1a2b3d;
+  --gx-green: #1e9a35;
+  --gx-cyan: #5fc0d8;
+  --gx-silver: #a9b0b6;
+
+  /* Hextra derives its whole primary scale from these three values. */
+  --primary-hue: 131deg;
+  --primary-saturation: 68%;
+  --primary-lightness: 36%;
+}
+
+.dark {
+  --primary-hue: 192deg;
+  --primary-saturation: 62%;
+  --primary-lightness: 61%;
+  --color-dark: #0e1a29;
+}
+
+/* Deep navy instead of Hextra's neutral black, everywhere it paints the page. */
+.dark body,
+.dark .hextra-nav-container-blur,
+.dark .hextra-sidebar-container,
+.dark .hextra-scrollbar {
+  background-color: #0e1a29;
+}
+.dark .hextra-search-wrapper ul,
+.dark .hextra-feature-card,
+.dark .hextra-card {
+  --tw-bg-opacity: 1;
+}
+
+/* Ink: headings follow the navy of the logo in light mode. */
+html:not(.dark) .content :is(h1, h2, h3, h4) {
+  color: var(--gx-navy);
+}
+.dark .content :is(h1, h2, h3, h4) {
+  color: #e6f1f7;
+}
+
+/* Quotes carry the hook questions, so give them the brand accent. */
+.content blockquote {
+  border-inline-start: 3px solid var(--gx-green);
+  background: color-mix(in srgb, var(--gx-green) 7%, transparent);
+  border-radius: 0 0.5rem 0.5rem 0;
+  padding: 0.6rem 1rem;
+}
+.dark .content blockquote {
+  border-inline-start-color: var(--gx-cyan);
+  background: color-mix(in srgb, var(--gx-cyan) 9%, transparent);
+}
+[dir="rtl"] .content blockquote {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+.content blockquote > p {
+  margin: 0;
+}
+
+/* Hero headline: navy to green in light mode, white to cyan in dark mode. */
+h1[class*="bg-clip-text"] {
+  background-image: linear-gradient(90deg, var(--gx-navy), var(--gx-green));
+}
+.dark h1[class*="bg-clip-text"] {
+  background-image: linear-gradient(90deg, #f2f8fb, var(--gx-cyan));
+}
+
+/* Inline code picks up a soft tint of the accent. */
+.content :not(pre) > code {
+  background: color-mix(in srgb, var(--gx-silver) 20%, transparent);
+  border-color: color-mix(in srgb, var(--gx-silver) 40%, transparent);
+}
+
+/* Home page logo, shown above the hero. */
+.gx-hero-logo {
+  display: block;
+  margin: 0 0 1.25rem;
+  width: 112px;
+  height: 112px;
+}
+.gx-hero-logo--dark { display: none; }
+.dark .gx-hero-logo--light { display: none; }
+.dark .gx-hero-logo--dark { display: block; }
+
+/* Code, terminals and file trees stay left-to-right inside RTL (Persian) pages. */
+[dir="rtl"] pre,
+[dir="rtl"] pre code,
+[dir="rtl"] .hextra-code-block,
+[dir="rtl"] table code {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+[dir="rtl"] code {
+  unicode-bidi: isolate;
+}

@@ -5,12 +5,18 @@
 server {
     listen {{ .Host.Listen }};
 {{- if .Host.SSL.Enabled }}
-    listen {{ .Host.ListenSSL }} ssl{{ if .Host.SSL.HTTP2 }} http2{{ end }};
+    listen {{ .Host.ListenSSL }} ssl{{ if and .Host.SSL.HTTP2 (not .HTTP2Directive) }} http2{{ end }};
+{{- if .Host.SSL.HTTP3 }}
+    listen {{ .Host.ListenSSL }} quic;
+{{- end }}
 {{- end }}
     server_name {{ .Host.ServerName }}{{ range .Host.ServerAlias }} {{ . }}{{ end }};
+{{- if and .Host.SSL.Enabled .Host.SSL.HTTP2 .HTTP2Directive }}
+    http2 on;
+{{- end }}
 
 {{- if .Host.SSL.Enabled }}
-{{- if .Host.SSL.ForceHTTPS }}
+{{- if and .Host.SSL.ForceHTTPS (ne (printf "%v" .Host.Mode) "redirect") }}
 
     if ($scheme != "https") {
         return 301 https://$host$request_uri;
@@ -19,12 +25,43 @@ server {
 
     ssl_certificate {{ .Host.SSL.CertFile }};
     ssl_certificate_key {{ .Host.SSL.KeyFile }};
+{{- if .Host.SSL.HTTP3 }}
+    add_header Alt-Svc 'h3=":{{ .Host.ListenSSL }}"; ma=86400' always;
+{{- end }}
+{{- end }}
+{{- range .PresetFiles }}
+    include {{ . }};
+{{- end }}
+
+{{- if .MaintenanceVar }}
+
+    # GoNix maintenance mode: 503 for everyone except the bypass addresses
+    # in {{ .MaintenanceFile }} (http level).
+    # GoNix's own error page URIs are exempt, so a custom 503 page is served.
+    set $gonix_maintenance ${{ .MaintenanceVar }}$uri;
+    if ($gonix_maintenance ~ "^1(?!{{ .ErrorPageURIPrefix }})") {
+        return 503;
+    }
 {{- end }}
 
 {{- if .Host.AccessListName }}
 
     auth_basic "Restricted";
     auth_basic_user_file {{ .AccessListFile }};
+{{- end }}
+
+{{- if .IPListFile }}
+
+    include {{ .IPListFile }};
+{{- end }}
+{{- if .Host.SatisfyAny }}
+    satisfy any;
+{{- end }}
+{{- if .RateLimitFile }}
+    include {{ .RateLimitFile }};
+{{- end }}
+{{- if .CountryListFile }}
+    include {{ .CountryListFile }};
 {{- end }}
 
 {{- if .Host.AccessLog }}
@@ -35,7 +72,8 @@ server {
 {{- if .Host.ErrorLog }}
     error_log {{ .ErrorLogPath }};
 {{- else }}
-    error_log off;
+    # error_log has no "off": it would create a file named off.
+    error_log /dev/null;
 {{- end }}
 
 {{- if .ErrorPagesFile }}
@@ -47,6 +85,12 @@ server {
 
     root {{ .Host.Root }};
     index index.html index.htm;
+{{- end }}
+
+{{- if eq (printf "%v" .Host.Mode) "redirect" }}
+
+    # GoNix redirect host
+    return {{ .Host.Redirect.Code }} {{ .Host.Redirect.ReturnURL }};
 {{- end }}
 
 {{ range .Host.Locations }}
