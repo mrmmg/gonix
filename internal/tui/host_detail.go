@@ -40,6 +40,7 @@ const (
 	hdRateLimit
 	hdErrorPages
 	hdLogs
+	hdLiveLogs
 	hdViewConfig
 	hdBackupRestore
 	hdDelete
@@ -50,7 +51,7 @@ const (
 // access lists or error pages would ever apply.
 var redirectHostActions = map[int]bool{
 	hdToggleEnable: true, hdRedirect: true, hdAliases: true, hdSSL: true, hdPresets: true,
-	hdLogs: true, hdViewConfig: true, hdBackupRestore: true, hdDelete: true,
+	hdLogs: true, hdLiveLogs: true, hdViewConfig: true, hdBackupRestore: true, hdDelete: true,
 }
 
 func newHostDetailScreen(deps Deps, h nginx.ListedHost) *hostDetailScreen {
@@ -83,6 +84,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{hdRateLimit, menuItem{title: "Rate Limit", desc: rateLimitDesc(s.host)}},
 		{hdErrorPages, menuItem{title: "Error Pages", desc: errorPagesDesc(s.host)}},
 		{hdLogs, menuItem{title: "Access / Error Logs"}},
+		{hdLiveLogs, menuItem{title: "Live Logs & Traffic", desc: "tail, filter, summarize, block clients"}},
 		{hdViewConfig, menuItem{title: "View Configuration"}},
 		{hdBackupRestore, menuItem{title: "Backup / Restore"}},
 		{hdDelete, menuItem{title: "Delete Host"}},
@@ -244,6 +246,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 		return newHostErrorPagesScreen(s.deps, s.host), nil
 	case hdLogs:
 		return newLogsWizard(s.deps, s.host), nil
+	case hdLiveLogs:
+		return s, navPush(newLiveLogsScreen(s.deps, s.host))
 	}
 	return s, nil
 }
