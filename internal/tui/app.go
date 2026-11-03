@@ -12,6 +12,7 @@ import (
 	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
+	"github.com/mrmmg/gonix/internal/maintenance"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/ratelimit"
@@ -35,6 +36,7 @@ type Deps struct {
 	IPLists     *iplist.Service
 	RealIP      *realip.Service
 	Presets     *presets.Service
+	Maintenance *maintenance.Service
 	RateLimits  *ratelimit.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger

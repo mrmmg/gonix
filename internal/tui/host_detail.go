@@ -26,6 +26,7 @@ type hostDetailScreen struct {
 // so menu rows are mapped to actions through hostDetailScreen.actions.
 const (
 	hdToggleEnable = iota
+	hdMaintenance
 	hdRedirect
 	hdAliases
 	hdAddPath
@@ -68,6 +69,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		item   menuItem
 	}{
 		{hdToggleEnable, menuItem{title: toggleLabel}},
+		{hdMaintenance, menuItem{title: "Maintenance Mode", desc: maintenanceDesc(s.host)}},
 		{hdRedirect, menuItem{title: "Redirect Configuration", desc: redirectDesc(s.host)}},
 		{hdAliases, menuItem{title: "Domain Names", desc: aliasesDesc(s.host)}},
 		{hdAddPath, menuItem{title: "Add New Path"}},
@@ -112,7 +114,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 // unmanagedBlocked lists the actions that edit a host's configuration and
 // therefore are refused for hosts GoNix did not generate.
 var unmanagedBlocked = map[int]bool{
-	hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true, hdPresets: true,
+	hdMaintenance: true, hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true, hdPresets: true,
 	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdRateLimit: true, hdErrorPages: true, hdLogs: true,
 }
 
@@ -208,6 +210,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 	switch choice {
 	case hdToggleEnable:
 		return s.toggleEnable()
+	case hdMaintenance:
+		return newMaintenanceWizard(s.deps, s.host), nil
 	case hdRedirect:
 		return newRedirectWizard(s.deps, s.host), nil
 	case hdAliases:

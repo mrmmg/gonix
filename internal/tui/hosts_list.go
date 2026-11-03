@@ -50,6 +50,9 @@ func (s *hostsListScreen) reload() {
 		if h.BrokenSymlink {
 			managed += dangerStyle.Render(" [broken symlink]")
 		}
+		if h.Maintenance {
+			managed += dangerStyle.Render(" [maintenance]")
+		}
 		if h.Managed && h.Mode == nginx.ModeRedirect {
 			managed += mutedStyle.Render(" → " + h.Redirect.Target)
 		}

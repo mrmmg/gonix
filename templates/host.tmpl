@@ -33,6 +33,17 @@ server {
     include {{ . }};
 {{- end }}
 
+{{- if .MaintenanceVar }}
+
+    # GoNix maintenance mode: 503 for everyone except the bypass addresses
+    # in {{ .MaintenanceFile }} (http level).
+    # GoNix's own error page URIs are exempt, so a custom 503 page is served.
+    set $gonix_maintenance ${{ .MaintenanceVar }}$uri;
+    if ($gonix_maintenance ~ "^1(?!{{ .ErrorPageURIPrefix }})") {
+        return 503;
+    }
+{{- end }}
+
 {{- if .Host.AccessListName }}
 
     auth_basic "Restricted";
@@ -58,7 +69,8 @@ server {
 {{- if .Host.ErrorLog }}
     error_log {{ .ErrorLogPath }};
 {{- else }}
-    error_log off;
+    # error_log has no "off": it would create a file named off.
+    error_log /dev/null;
 {{- end }}
 
 {{- if .ErrorPagesFile }}

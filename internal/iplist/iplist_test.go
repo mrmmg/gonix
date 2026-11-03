@@ -2,9 +2,11 @@ package iplist
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -176,4 +178,59 @@ func TestHostWithIPListsPassesRealNginx(t *testing.T) {
 	}
 	p.AddSite(t, "example.com", out)
 	p.Test(t)
+}
+
+// TestIPListBehavior checks with a real Nginx that a blocklist refuses the
+// listed client and an allowlist admits it.
+func TestIPListBehavior(t *testing.T) {
+	for _, tc := range []struct {
+		mode Mode
+		want int
+	}{
+		{Blocklist, http.StatusForbidden},
+		{Allowlist, http.StatusOK},
+	} {
+		t.Run(string(tc.mode), func(t *testing.T) {
+			p := nginxtest.New(t)
+			snippets := filepath.Join(p.Dir, "snippets")
+			store, err := NewStore(snippets)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := Render(List{Name: "local", Mode: tc.mode, Entries: []string{"127.0.0.1"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(store.Path("local"), []byte(out), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			r, err := nginx.NewRenderer(p.Dir, p.Dir, p.Dir, snippets)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// A static file, not `return`: return answers before the access
+			// phase, where allow/deny are evaluated.
+			if err := os.WriteFile(filepath.Join(p.Dir, "index.html"), []byte("ok"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			site, err := r.Render(nginx.Host{ServerName: "example.com", Mode: nginx.ModeStatic, Root: p.Dir, Listen: 80,
+				IPListName: "local"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.AddSite(t, "example.com", site)
+			p.Start(t)
+
+			req, _ := http.NewRequest(http.MethodGet, "http://127.0.0.1:"+strconv.Itoa(p.Port(t, 80))+"/", nil)
+			req.Host = "example.com"
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != tc.want {
+				t.Errorf("status = %d, want %d", resp.StatusCode, tc.want)
+			}
+		})
+	}
 }

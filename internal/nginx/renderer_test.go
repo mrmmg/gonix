@@ -208,3 +208,30 @@ func TestParseLocationAccessListIsNotHostLevel(t *testing.T) {
 		t.Errorf("location AccessListName = %q, want admins", parsed.Locations[0].AccessListName)
 	}
 }
+
+// Regression test: `error_log off;` makes Nginx log to a file named "off".
+func TestDisabledErrorLogUsesDevNull(t *testing.T) {
+	r := newTestRenderer(t)
+	h := Host{ServerName: "example.com", Mode: ModeStatic, Root: "/srv", Listen: 80, AccessLog: false, ErrorLog: false}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "error_log off;") || !strings.Contains(out, "error_log /dev/null;") {
+		t.Errorf("disabled error log must render /dev/null:\n%s", out)
+	}
+	for _, content := range []string{out, strings.Replace(out, "error_log /dev/null;", "error_log off;", 1)} {
+		parsed, err := ParseManagedHost(content)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if parsed.ErrorLog || parsed.AccessLog {
+			t.Errorf("logs should parse as disabled: access=%v error=%v", parsed.AccessLog, parsed.ErrorLog)
+		}
+	}
+	h.ErrorLog = true
+	out, _ = r.Render(h)
+	if parsed, _ := ParseManagedHost(out); !parsed.ErrorLog {
+		t.Error("enabled error log parsed as disabled")
+	}
+}

@@ -1,6 +1,9 @@
 package nginx
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // SnippetFilePrefix is prepended to every error pages snippet file name, so
 // GoNix-generated snippets are easy to tell apart from anything else in the
@@ -49,3 +52,27 @@ const RateLimitFilePrefix = "gonix-ratelimit-"
 func RateLimitFileName(name string) string {
 	return RateLimitFilePrefix + name + ".conf"
 }
+
+// MaintenanceFilePrefix is prepended to every host's http-level maintenance
+// file, e.g. "gonix-maintenance-example.com.conf".
+const MaintenanceFilePrefix = "gonix-maintenance-"
+
+// MaintenanceFileName returns the http-level maintenance file name of the
+// host serverName.
+func MaintenanceFileName(serverName string) string {
+	return MaintenanceFilePrefix + serverName + ".conf"
+}
+
+// MaintenanceVar returns the variable (without $) that is non-zero while
+// serverName is in maintenance mode for the current client, e.g.
+// "gonix_maint_example_com". Dots become "_" and hyphens "__", so distinct
+// valid domain names never share a variable.
+func MaintenanceVar(serverName string) string {
+	r := strings.NewReplacer(".", "_", "-", "__")
+	return "gonix_maint_" + r.Replace(strings.ToLower(serverName))
+}
+
+// ErrorPageURIPrefix is the common prefix of the internal URIs error pages
+// snippets serve pages under (errorpages.URIPrefix and TemplateURI).
+// Maintenance mode exempts it, so a custom 503 page can still be served.
+const ErrorPageURIPrefix = "/__gonix_error_page"

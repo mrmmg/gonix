@@ -12,6 +12,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,6 +31,7 @@ type Prefix struct {
 	HTTPDir  string
 	SitesDir string
 	binary   string
+	ports    map[int]int // privileged port -> unprivileged stand-in
 }
 
 // New creates a Prefix, skipping the test when nginx is not installed.
@@ -75,24 +77,74 @@ func (p *Prefix) AddHTTP(t testing.TB, name, content string) {
 }
 
 // AddSite writes a server block file. `nginx -t` binds every listen
-// address, so privileged ports (80, 443, ...) are shifted up by 20000 to
-// let tests run without root.
+// address, so each privileged port (80, 443, ...) is replaced with a free
+// unprivileged one; Port reports the replacement.
 func (p *Prefix) AddSite(t testing.TB, name, content string) {
 	t.Helper()
-	p.write(t, filepath.Join(p.SitesDir, name), unprivilegedPorts(content))
+	p.write(t, filepath.Join(p.SitesDir, name), p.remapPorts(t, content))
 }
 
 var reListenPort = regexp.MustCompile(`(?m)^(\s*listen\s+(?:\[::\]:)?)(\d+)`)
 
-func unprivilegedPorts(content string) string {
+func (p *Prefix) remapPorts(t testing.TB, content string) string {
 	return reListenPort.ReplaceAllStringFunc(content, func(m string) string {
 		sub := reListenPort.FindStringSubmatch(m)
 		port, _ := strconv.Atoi(sub[2])
 		if port < 1024 {
-			port += 20000
+			port = p.Port(t, port)
 		}
 		return sub[1] + strconv.Itoa(port)
 	})
+}
+
+// Port returns the unprivileged port standing in for a privileged one,
+// allocating a free one on first use.
+func (p *Prefix) Port(t testing.TB, privileged int) int {
+	t.Helper()
+	if p.ports == nil {
+		p.ports = map[int]int{}
+	}
+	if port, ok := p.ports[privileged]; ok {
+		return port
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("finding a free port: %v", err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	p.ports[privileged] = port
+	return port
+}
+
+// Start runs Nginx in the foreground for the rest of the test, so tests
+// can send real requests to it (see Port). The configuration must pass
+// `nginx -t` first.
+func (p *Prefix) Start(t testing.TB) {
+	t.Helper()
+	p.Test(t)
+	cmd := exec.Command(p.binary, "-p", p.Dir, "-c", filepath.Join(p.Dir, "nginx.conf"), "-g", "daemon off;")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("starting nginx: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+	for _, port := range p.ports {
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			c, err := net.DialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(port), 100*time.Millisecond)
+			if err == nil {
+				c.Close()
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("nginx did not start listening on %d", port)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
 }
 
 // Test runs `nginx -t` against the prefix and fails the test, printing the

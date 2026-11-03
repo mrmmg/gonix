@@ -12,6 +12,7 @@ import (
 	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
+	"github.com/mrmmg/gonix/internal/maintenance"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/ratelimit"
@@ -85,10 +86,11 @@ func testDeps(t *testing.T) Deps {
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
 			Manager: manager, Writer: writer,
 		},
-		Presets:   &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
-		SystemSvc: systemSvc,
-		Audit:     auditLogger,
-		Backups:   backups,
+		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: svc, Writer: writer},
+		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
+		SystemSvc:   systemSvc,
+		Audit:       auditLogger,
+		Backups:     backups,
 	}
 }
 

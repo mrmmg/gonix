@@ -125,7 +125,9 @@ func ParseManagedHost(content string) (Host, error) {
 		h.AccessLog = false
 	}
 	if m := reErrorLog.FindStringSubmatch(content); m != nil {
-		h.ErrorLog = strings.TrimSpace(m[1]) != "off"
+		// Older GoNix versions wrote "off", which Nginx takes as a file name.
+		target := strings.Fields(m[1])[0]
+		h.ErrorLog = target != "off" && target != "/dev/null"
 	} else if strings.Contains(content, "error_log off;") {
 		h.ErrorLog = false
 	}
@@ -146,6 +148,7 @@ func ParseManagedHost(content string) (Host, error) {
 		h.IPListName = m[1]
 	}
 	h.SatisfyAny = reSatisfyAny.MatchString(serverLevel)
+	h.Maintenance = strings.Contains(serverLevel, "# GoNix maintenance mode")
 	if m := reRateLimitInc.FindStringSubmatch(serverLevel); m != nil {
 		h.RateLimit = m[1]
 	}

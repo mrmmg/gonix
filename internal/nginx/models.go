@@ -149,6 +149,11 @@ type Host struct {
 	IPListName     string // IP access list included at server level, empty if none
 	RateLimit      string // rate limit included at server level, empty if none
 
+	// Maintenance answers every request with 503, except for the bypass
+	// addresses kept in the host's http-level maintenance file (see
+	// internal/maintenance).
+	Maintenance bool
+
 	// SatisfyAny renders `satisfy any;`, so a client passes when it matches
 	// the IP list OR authenticates, instead of having to do both.
 	SatisfyAny bool

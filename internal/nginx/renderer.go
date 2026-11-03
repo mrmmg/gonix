@@ -51,6 +51,10 @@ type renderView struct {
 	ErrorPagesFile string
 	PresetFiles    []string
 	HTTP2Directive bool
+
+	MaintenanceVar     string
+	MaintenanceFile    string
+	ErrorPageURIPrefix string
 }
 
 func (r *Renderer) htpasswdPath(name string) string {
@@ -98,6 +102,11 @@ func (r *Renderer) Render(h Host) (string, error) {
 		IPListFile:     r.ipListPath(h.IPListName),
 		RateLimitFile:  r.snippetPath(RateLimitFileName, h.RateLimit),
 		HTTP2Directive: r.Build.HTTP2Directive(),
+	}
+	if h.Maintenance && h.Mode != ModeRedirect {
+		view.MaintenanceVar = MaintenanceVar(h.ServerName)
+		view.MaintenanceFile = MaintenanceFileName(h.ServerName)
+		view.ErrorPageURIPrefix = ErrorPageURIPrefix
 	}
 	for _, p := range h.Presets {
 		view.PresetFiles = append(view.PresetFiles, filepath.Join(r.snippetsDir, PresetFileName(p)))

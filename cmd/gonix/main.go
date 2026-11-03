@@ -18,6 +18,7 @@ import (
 	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
+	"github.com/mrmmg/gonix/internal/maintenance"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/ratelimit"
@@ -156,10 +157,11 @@ func run() error {
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
 			Manager: manager, Writer: snippetWriter,
 		},
-		Presets:   &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
-		SystemSvc: systemSvc,
-		Audit:     auditLogger,
-		Backups:   backups,
+		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: hostService, Writer: snippetWriter},
+		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
+		SystemSvc:   systemSvc,
+		Audit:       auditLogger,
+		Backups:     backups,
 	}
 
 	p := tea.NewProgram(tui.NewApp(deps), tea.WithAltScreen())

@@ -1,6 +1,8 @@
 package nginx
 
 import (
+	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -140,4 +142,30 @@ func newTestRenderer(t *testing.T) *Renderer {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 	return r
+}
+
+// TestRedirectBehavior sends a real request through Nginx.
+func TestRedirectBehavior(t *testing.T) {
+	p := nginxtest.New(t)
+	r := newTestRenderer(t)
+	h := redirectHost()
+	h.Redirect.Code = 308
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.AddSite(t, "domain.net", strings.ReplaceAll(out, "/var/log/nginx/", p.Dir+"/"))
+	p.Start(t)
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, _ := http.NewRequest(http.MethodGet, "http://127.0.0.1:"+strconv.Itoa(p.Port(t, 80))+"/blog/post?id=5", nil)
+	req.Host = "www.domain.net"
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 308 || resp.Header.Get("Location") != "https://domain.com/blog/post?id=5" {
+		t.Errorf("got %d Location %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
 }
