@@ -23,8 +23,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Exclude art/ from build context
-        run: rm -rf art
+      - name: Exclude art/ and docs/ from build context
+        run: rm -rf art docs
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -75,8 +75,8 @@ jobs:
           # git-cliff needs the full history and tags to find the previous release.
           fetch-depth: 0
 
-      - name: Exclude art/ from build context
-        run: rm -rf art
+      - name: Exclude art/ and docs/ from build context
+        run: rm -rf art docs
 
       - name: Generate release notes
         uses: orhun/git-cliff-action@v4
