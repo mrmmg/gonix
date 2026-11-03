@@ -3,7 +3,7 @@
 # GoNix
 
 [![Latest Release](https://img.shields.io/github/v/release/mrmmg/gonix?label=release)](https://github.com/mrmmg/gonix/releases/latest)
-[![Binary Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmrmmg%2Fgonix%2Fbadges%2Fdownloads.json)](https://github.com/mrmmg/gonix/releases)
+[![Binary Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmrmmg%2Fgonix%2Fbadges%2Fdownloads.json&cacheSeconds=3600)](https://github.com/mrmmg/gonix/releases)
 [![License](https://img.shields.io/github/license/mrmmg/gonix)](LICENSE)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/mrmmg/gonix)](go.mod)
 
