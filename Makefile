@@ -69,6 +69,14 @@ install: release
 	fi
 	@echo "==> Installation complete. Run: sudo gonix"
 
+.PHONY: docs docs-serve
+# Documentation site (Hugo + Hextra, see docs/). Not part of the binary.
+docs:
+	cd docs && hugo --gc --minify
+
+docs-serve:
+	cd docs && hugo server
+
 .PHONY: clean
 clean:
 	rm -f $(BINARY)
