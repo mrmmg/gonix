@@ -17,7 +17,10 @@ import (
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
 	"github.com/mrmmg/gonix/internal/hosts"
+	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/realip"
+	"github.com/mrmmg/gonix/internal/snippet"
 	"github.com/mrmmg/gonix/internal/system"
 	"github.com/mrmmg/gonix/internal/tui"
 )
@@ -125,12 +128,23 @@ func run() error {
 		Audit:    auditLogger,
 	}
 
+	// Standalone snippets (IP lists, real client IP, ...) share one safe
+	// write -> nginx -t -> reload (or restore) workflow.
+	snippetWriter := &snippet.Writer{Tester: validator, Reloader: systemSvc, Audit: auditLogger}
+
+	ipListStore, err := iplist.NewStore(cfg.ErrorPages.SnippetsDirectory)
+	if err != nil {
+		return fmt.Errorf("initializing IP access list store: %w", err)
+	}
+
 	deps := tui.Deps{
 		Config:      cfg,
 		Manager:     manager,
 		HostService: hostService,
 		AccessLists: accessLists,
 		ErrorPages:  errorPagesService,
+		IPLists:     &iplist.Service{Store: ipListStore, Manager: manager, Writer: snippetWriter},
+		RealIP:      &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
 		SystemSvc:   systemSvc,
 		Audit:       auditLogger,
 		Backups:     backups,

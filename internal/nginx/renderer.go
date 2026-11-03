@@ -42,6 +42,7 @@ type renderView struct {
 	AccessLogPath  string
 	ErrorLogPath   string
 	AccessListFile string
+	IPListFile     string
 	ErrorPagesFile string
 }
 
@@ -50,6 +51,13 @@ func (r *Renderer) htpasswdPath(name string) string {
 		return ""
 	}
 	return filepath.Join(r.accessListFileDir, name+".htpasswd")
+}
+
+func (r *Renderer) ipListPath(name string) string {
+	if name == "" {
+		return ""
+	}
+	return filepath.Join(r.snippetsDir, IPListFileName(name))
 }
 
 // Render produces the full Nginx server-block configuration for host h.
@@ -64,6 +72,7 @@ func (r *Renderer) Render(h Host) (string, error) {
 	rendered.Locations = make([]Location, len(h.Locations))
 	for i, l := range h.Locations {
 		l.AccessListName = r.htpasswdPath(l.AccessListName)
+		l.IPListName = r.ipListPath(l.IPListName)
 		rendered.Locations[i] = l
 	}
 
@@ -72,6 +81,7 @@ func (r *Renderer) Render(h Host) (string, error) {
 		AccessLogPath:  filepath.Join(r.accessLogDir, h.ServerName+".access.log"),
 		ErrorLogPath:   filepath.Join(r.errorLogDir, h.ServerName+".error.log"),
 		AccessListFile: r.htpasswdPath(h.AccessListName),
+		IPListFile:     r.ipListPath(h.IPListName),
 	}
 	if h.ErrorPagesSnippet != "" {
 		view.ErrorPagesFile = filepath.Join(r.snippetsDir, SnippetFileName(h.ErrorPagesSnippet))

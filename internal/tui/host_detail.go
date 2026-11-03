@@ -33,6 +33,7 @@ const (
 	hdWebSocket
 	hdProxy
 	hdAccessList
+	hdIPRules
 	hdErrorPages
 	hdLogs
 	hdViewConfig
@@ -72,6 +73,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{hdWebSocket, menuItem{title: "WebSocket Configuration"}},
 		{hdProxy, menuItem{title: "Proxy Configuration"}},
 		{hdAccessList, menuItem{title: "Access List"}},
+		{hdIPRules, menuItem{title: "IP Access Rules", desc: ipRulesDesc(s.host)}},
 		{hdErrorPages, menuItem{title: "Error Pages", desc: errorPagesDesc(s.host)}},
 		{hdLogs, menuItem{title: "Access / Error Logs"}},
 		{hdViewConfig, menuItem{title: "View Configuration"}},
@@ -106,7 +108,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 // therefore are refused for hosts GoNix did not generate.
 var unmanagedBlocked = map[int]bool{
 	hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true,
-	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdErrorPages: true, hdLogs: true,
+	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdErrorPages: true, hdLogs: true,
 }
 
 // selectAction moves the menu cursor to action, reporting whether it is
@@ -133,6 +135,22 @@ func aliasesDesc(h nginx.ListedHost) string {
 		return mutedStyle.Render("(no additional names)")
 	}
 	return strings.Join(h.ServerAlias, " ")
+}
+
+func ipRulesDesc(h nginx.ListedHost) string {
+	var parts []string
+	if h.IPListName != "" {
+		parts = append(parts, h.IPListName)
+	}
+	for _, loc := range h.Locations {
+		if loc.IPListName != "" {
+			parts = append(parts, loc.Path+": "+loc.IPListName)
+		}
+	}
+	if len(parts) == 0 {
+		return mutedStyle.Render("(none)")
+	}
+	return strings.Join(parts, ", ")
 }
 
 func errorPagesDesc(h nginx.ListedHost) string {
@@ -207,6 +225,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 		return newProxyWizard(s.deps, s.host), nil
 	case hdAccessList:
 		return newHostAccessListScreen(s.deps, s.host), nil
+	case hdIPRules:
+		return newHostIPRulesWizard(s.deps, s.host), nil
 	case hdErrorPages:
 		return newHostErrorPagesScreen(s.deps, s.host), nil
 	case hdLogs:

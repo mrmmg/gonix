@@ -126,6 +126,7 @@ type Location struct {
 	CustomConfig   string // raw user supplied configuration for the location
 	Proxy          *ProxyConfig
 	AccessListName string // empty when no access list is applied
+	IPListName     string // IP access list included by this location, empty if none
 }
 
 // Host is the internal representation of a single Nginx virtual host,
@@ -143,6 +144,11 @@ type Host struct {
 	AccessLog      bool
 	ErrorLog       bool
 	AccessListName string // access list applied at server level, empty if none
+	IPListName     string // IP access list included at server level, empty if none
+
+	// SatisfyAny renders `satisfy any;`, so a client passes when it matches
+	// the IP list OR authenticates, instead of having to do both.
+	SatisfyAny bool
 
 	// ErrorPagesSnippet names the error pages snippet included by this
 	// host (see internal/errorpages), empty if none.
@@ -185,6 +191,14 @@ func (h Host) Validate() error {
 		}
 		if !loc.IsCustom && loc.Proxy == nil {
 			return fmt.Errorf("location %q in host %q is not custom but has no proxy configuration", loc.Path, h.ServerName)
+		}
+	}
+	if h.IPListName != "" && !ValidSnippetName(h.IPListName) {
+		return fmt.Errorf("host %q references an invalid IP access list name %q", h.ServerName, h.IPListName)
+	}
+	for _, loc := range h.Locations {
+		if loc.IPListName != "" && !ValidSnippetName(loc.IPListName) {
+			return fmt.Errorf("location %q in host %q references an invalid IP access list name %q", loc.Path, h.ServerName, loc.IPListName)
 		}
 	}
 	if h.ErrorPagesSnippet != "" && !ValidSnippetName(h.ErrorPagesSnippet) {

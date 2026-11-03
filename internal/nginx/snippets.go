@@ -20,3 +20,13 @@ func ValidSnippetName(name string) bool {
 func SnippetFileName(name string) string {
 	return SnippetFilePrefix + name + ".conf"
 }
+
+// IPListFilePrefix is prepended to every IP access list snippet file name.
+const IPListFilePrefix = "gonix-ip-"
+
+// IPListFileName returns the file name (without directory) of the IP
+// access list called name, e.g. "gonix-ip-office.conf". Names follow the
+// same rules as ValidSnippetName.
+func IPListFileName(name string) string {
+	return IPListFilePrefix + name + ".conf"
+}

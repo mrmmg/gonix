@@ -27,6 +27,14 @@ server {
     auth_basic_user_file {{ .AccessListFile }};
 {{- end }}
 
+{{- if .IPListFile }}
+
+    include {{ .IPListFile }};
+{{- end }}
+{{- if .Host.SatisfyAny }}
+    satisfy any;
+{{- end }}
+
 {{- if .Host.AccessLog }}
     access_log {{ .AccessLogPath }};
 {{- else }}

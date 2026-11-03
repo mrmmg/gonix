@@ -28,6 +28,10 @@ type NginxConfig struct {
 	SitesAvailable string `yaml:"sites_available"`
 	SitesEnabled   string `yaml:"sites_enabled"`
 	BinaryPath     string `yaml:"binary_path"`
+	// HTTPSnippetsDir holds http-level files GoNix generates (real client
+	// IP, rate limit zones, ...). nginx.conf must include it inside the
+	// http block, as Debian/Ubuntu/RHEL do with conf.d by default.
+	HTTPSnippetsDir string `yaml:"http_snippets_dir"`
 }
 
 type CertificatesConfig struct {
@@ -65,10 +69,11 @@ type ErrorPagesConfig struct {
 func Default() *Config {
 	return &Config{
 		Nginx: NginxConfig{
-			ConfigDir:      "/etc/nginx",
-			SitesAvailable: "/etc/nginx/sites-available",
-			SitesEnabled:   "/etc/nginx/sites-enabled",
-			BinaryPath:     "nginx",
+			ConfigDir:       "/etc/nginx",
+			SitesAvailable:  "/etc/nginx/sites-available",
+			SitesEnabled:    "/etc/nginx/sites-enabled",
+			BinaryPath:      "nginx",
+			HTTPSnippetsDir: "/etc/nginx/conf.d",
 		},
 		Certificates: CertificatesConfig{
 			Directory: "/etc/nginx/certs",

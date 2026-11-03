@@ -21,6 +21,7 @@ var (
 	reErrorLog      = regexp.MustCompile(`(?m)^\s*error_log\s+([^;]+);`)
 	reAuthUserFile  = regexp.MustCompile(`(?m)^\s*auth_basic_user_file\s+([^;]+);`)
 	reLocationStart = regexp.MustCompile(`^\s*location\s+(\S+)\s*\{`)
+	reFirstLocation = regexp.MustCompile(`(?m)^\s*location\s+\S+\s*\{`)
 	reProxyPass     = regexp.MustCompile(`(?m)^\s*proxy_pass\s+([^;]+);`)
 	reProxyHTTPVer  = regexp.MustCompile(`(?m)^\s*proxy_http_version\s+([^;]+);`)
 	reProxyConnTO   = regexp.MustCompile(`(?m)^\s*proxy_connect_timeout\s+([^;]+);`)
@@ -28,6 +29,8 @@ var (
 	reProxySendTO   = regexp.MustCompile(`(?m)^\s*proxy_send_timeout\s+([^;]+);`)
 	reMaxBodySize   = regexp.MustCompile(`(?m)^\s*client_max_body_size\s+([^;]+);`)
 	reRedirect      = regexp.MustCompile(`(?m)^\s*# GoNix redirect host\s*\n\s*return\s+(\d{3})\s+([^;]+);`)
+	reIPListInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + IPListFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	reSatisfyAny    = regexp.MustCompile(`(?m)^\s*satisfy\s+any\s*;`)
 	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
 
@@ -123,7 +126,7 @@ func ParseManagedHost(content string) (Host, error) {
 	// Host-level auth_basic_user_file and the error pages include appear
 	// before the first location block; anything after belongs to a location.
 	serverLevel := content
-	if idx := reLocationStart.FindStringIndex(content); idx != nil {
+	if idx := reFirstLocation.FindStringIndex(content); idx != nil {
 		serverLevel = content[:idx[0]]
 	}
 	if m := reAuthUserFile.FindStringSubmatch(serverLevel); m != nil {
@@ -132,6 +135,10 @@ func ParseManagedHost(content string) (Host, error) {
 	if m := reErrorPagesInc.FindStringSubmatch(serverLevel); m != nil {
 		h.ErrorPagesSnippet = m[1]
 	}
+	if m := reIPListInc.FindStringSubmatch(serverLevel); m != nil {
+		h.IPListName = m[1]
+	}
+	h.SatisfyAny = reSatisfyAny.MatchString(serverLevel)
 
 	h.Locations = parseLocations(content)
 	return h, nil
@@ -211,6 +218,9 @@ func parseLocationBody(path, body string) Location {
 
 	if m := reAuthUserFile.FindStringSubmatch(body); m != nil {
 		loc.AccessListName = accessListNameFromPath(m[1])
+	}
+	if m := reIPListInc.FindStringSubmatch(body); m != nil {
+		loc.IPListName = m[1]
 	}
 	return loc
 }

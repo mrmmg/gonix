@@ -38,6 +38,9 @@
         auth_basic "Restricted";
         auth_basic_user_file {{ .AccessListName }};
 {{- end }}
+{{- if .IPListName }}
+        include {{ .IPListName }};
+{{- end }}
 {{- end }}
     }
 {{- end }}

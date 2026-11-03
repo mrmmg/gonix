@@ -182,3 +182,29 @@ func TestReverseProxyHostPassesRealNginx(t *testing.T) {
 	p.AddSite(t, "example.com", out)
 	p.Test(t)
 }
+
+// Regression test: location-level access lists used to be mistaken for
+// host-level ones, because the server-level section of the file was never
+// cut at the first location block.
+func TestParseLocationAccessListIsNotHostLevel(t *testing.T) {
+	r := newTestRenderer(t)
+	h := Host{
+		ServerName: "example.com", Mode: ModeReverseProxy, Listen: 80,
+		Locations: []Location{{Path: "/admin/", AccessListName: "admins", Proxy: &ProxyConfig{
+			UpstreamScheme: "http", UpstreamHost: "127.0.0.1", UpstreamPort: 8080, HTTPVersion: "1.1"}}},
+	}
+	out, err := r.Render(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseManagedHost(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.AccessListName != "" {
+		t.Errorf("host-level AccessListName = %q, want empty", parsed.AccessListName)
+	}
+	if parsed.Locations[0].AccessListName != "admins" {
+		t.Errorf("location AccessListName = %q, want admins", parsed.Locations[0].AccessListName)
+	}
+}
