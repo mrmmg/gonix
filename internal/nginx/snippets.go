@@ -85,3 +85,19 @@ const UpstreamFilePrefix = "gonix-upstream-"
 func UpstreamFileName(name string) string {
 	return UpstreamFilePrefix + name + ".conf"
 }
+
+// CountryListFilePrefix is prepended to both files of a country list: the
+// http-level map and the server-level check hosts include.
+const CountryListFilePrefix = "gonix-geo-"
+
+// CountryListFileName returns the file name of the country list called
+// name, e.g. "gonix-geo-eu_only.conf".
+func CountryListFileName(name string) string {
+	return CountryListFilePrefix + name + ".conf"
+}
+
+var reCountryListName = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
+
+// ValidCountryListName reports whether name is usable for a country list.
+// Hyphens are not allowed because the name becomes part of a variable.
+func ValidCountryListName(name string) bool { return reCountryListName.MatchString(name) }

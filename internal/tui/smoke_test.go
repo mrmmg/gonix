@@ -10,6 +10,7 @@ import (
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
+	"github.com/mrmmg/gonix/internal/geoblock"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/maintenance"
@@ -92,6 +93,10 @@ func testDeps(t *testing.T) Deps {
 		Streams: &streams.Service{
 			Dir: t.TempDir(), MainIncludeDir: t.TempDir(), ConfigDir: t.TempDir(),
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, Writer: writer,
+		},
+		GeoBlock: &geoblock.Service{
+			HTTPDir: cfg.Nginx.HTTPSnippetsDir, SnippetsDir: cfg.ErrorPages.SnippetsDirectory,
+			Database: cfg.GeoIP.Database, Manager: manager, Writer: writer,
 		},
 		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: svc, Writer: writer},
 		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},

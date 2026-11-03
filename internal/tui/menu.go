@@ -23,6 +23,7 @@ const (
 	miAccessLists
 	miIPLists
 	miRealIP
+	miGeo
 	miRateLimits
 	miUpstreams
 	miStreams
@@ -44,6 +45,7 @@ func newMainMenu(deps Deps) *mainMenu {
 			{title: "Access Lists", desc: "HTTP Basic Authentication"},
 			{title: "IP Access Lists", desc: "allow or deny clients by IP address"},
 			{title: "Real Client IP", desc: "Cloudflare / load balancer client addresses"},
+			{title: "Country Blocking", desc: "allow or refuse clients by country (GeoIP)"},
 			{title: "Rate Limits", desc: "limit requests and connections per client"},
 			{title: "Upstream Groups", desc: "load balancing across several backends"},
 			{title: "Stream Proxies", desc: "forward TCP/UDP ports (databases, SSH, DNS, ...)"},
@@ -80,6 +82,8 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newIPListsScreen(s.deps))
 			case miRealIP:
 				return s, navPush(newRealIPScreen(s.deps))
+			case miGeo:
+				return s, navPush(newGeoScreen(s.deps))
 			case miRateLimits:
 				return s, navPush(newRateLimitsScreen(s.deps))
 			case miUpstreams:

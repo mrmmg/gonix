@@ -33,6 +33,7 @@ var (
 	rePresetInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + PresetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 	reHTTP2On       = regexp.MustCompile(`(?m)^\s*http2\s+on\s*;`)
 	reRateLimitInc  = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + RateLimitFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	reCountryInc    = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + CountryListFilePrefix + `([A-Za-z0-9_]+)\.conf\s*;`)
 	reSatisfyAny    = regexp.MustCompile(`(?m)^\s*satisfy\s+any\s*;`)
 	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
@@ -151,6 +152,9 @@ func ParseManagedHost(content string) (Host, error) {
 	h.Maintenance = strings.Contains(serverLevel, "# GoNix maintenance mode")
 	if m := reRateLimitInc.FindStringSubmatch(serverLevel); m != nil {
 		h.RateLimit = m[1]
+	}
+	if m := reCountryInc.FindStringSubmatch(serverLevel); m != nil {
+		h.CountryList = m[1]
 	}
 	for _, m := range rePresetInc.FindAllStringSubmatch(serverLevel, -1) {
 		h.Presets = append(h.Presets, m[1])

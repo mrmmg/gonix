@@ -60,6 +60,9 @@ server {
 {{- if .RateLimitFile }}
     include {{ .RateLimitFile }};
 {{- end }}
+{{- if .CountryListFile }}
+    include {{ .CountryListFile }};
+{{- end }}
 
 {{- if .Host.AccessLog }}
     access_log {{ .AccessLogPath }};

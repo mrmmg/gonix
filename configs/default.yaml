@@ -54,3 +54,9 @@ error_pages:
   # 502.html). Each snippet stores its own directory; this is only the
   # default offered when creating one.
   pages_directory: /var/www/html/error_pages
+
+geoip:
+  # MaxMind GeoLite2/GeoIP2 Country database used by country blocking. It
+  # needs the third-party geoip2 Nginx module (Debian/Ubuntu:
+  # libnginx-mod-http-geoip2) and a database, e.g. from geoipupdate.
+  database: /usr/share/GeoIP/GeoLite2-Country.mmdb

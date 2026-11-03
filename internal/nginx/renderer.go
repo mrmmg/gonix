@@ -42,15 +42,16 @@ func NewRenderer(accessLogDir, errorLogDir, accessListFileDir, snippetsDir strin
 
 // renderView is the data handed to host.tmpl.
 type renderView struct {
-	Host           Host
-	AccessLogPath  string
-	ErrorLogPath   string
-	AccessListFile string
-	IPListFile     string
-	RateLimitFile  string
-	ErrorPagesFile string
-	PresetFiles    []string
-	HTTP2Directive bool
+	Host            Host
+	AccessLogPath   string
+	ErrorLogPath    string
+	AccessListFile  string
+	IPListFile      string
+	RateLimitFile   string
+	CountryListFile string
+	ErrorPagesFile  string
+	PresetFiles     []string
+	HTTP2Directive  bool
 
 	MaintenanceVar     string
 	MaintenanceFile    string
@@ -95,13 +96,14 @@ func (r *Renderer) Render(h Host) (string, error) {
 	}
 
 	view := renderView{
-		Host:           rendered,
-		AccessLogPath:  filepath.Join(r.accessLogDir, h.ServerName+".access.log"),
-		ErrorLogPath:   filepath.Join(r.errorLogDir, h.ServerName+".error.log"),
-		AccessListFile: r.htpasswdPath(h.AccessListName),
-		IPListFile:     r.ipListPath(h.IPListName),
-		RateLimitFile:  r.snippetPath(RateLimitFileName, h.RateLimit),
-		HTTP2Directive: r.Build.HTTP2Directive(),
+		Host:            rendered,
+		AccessLogPath:   filepath.Join(r.accessLogDir, h.ServerName+".access.log"),
+		ErrorLogPath:    filepath.Join(r.errorLogDir, h.ServerName+".error.log"),
+		AccessListFile:  r.htpasswdPath(h.AccessListName),
+		IPListFile:      r.ipListPath(h.IPListName),
+		RateLimitFile:   r.snippetPath(RateLimitFileName, h.RateLimit),
+		CountryListFile: r.snippetPath(CountryListFileName, h.CountryList),
+		HTTP2Directive:  r.Build.HTTP2Directive(),
 	}
 	if h.Maintenance && h.Mode != ModeRedirect {
 		view.MaintenanceVar = MaintenanceVar(h.ServerName)

@@ -154,6 +154,11 @@ func (c *Checker) checkHost(h nginx.Host, add func(Severity, string, string, ...
 	if h.ErrorPagesSnippet != "" {
 		need(snippet(nginx.SnippetFileName, h.ErrorPagesSnippet), "error pages snippet")
 	}
+	if h.CountryList != "" {
+		need(snippet(nginx.CountryListFileName, h.CountryList), "country list")
+		need(filepath.Join(c.HTTPDir, nginx.CountryListFileName(h.CountryList)), "country list map")
+		need(filepath.Join(c.HTTPDir, "gonix-geoip.conf"), "GeoIP setup")
+	}
 	if h.Maintenance {
 		need(filepath.Join(c.HTTPDir, nginx.MaintenanceFileName(h.ServerName)), "maintenance file")
 	}

@@ -37,6 +37,7 @@ const (
 	hdProxy
 	hdAccessList
 	hdIPRules
+	hdCountry
 	hdRateLimit
 	hdErrorPages
 	hdLogs
@@ -81,6 +82,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{hdProxy, menuItem{title: "Proxy Configuration"}},
 		{hdAccessList, menuItem{title: "Access List"}},
 		{hdIPRules, menuItem{title: "IP Access Rules", desc: ipRulesDesc(s.host)}},
+		{hdCountry, menuItem{title: "Country Access", desc: countryDesc(s.host)}},
 		{hdRateLimit, menuItem{title: "Rate Limit", desc: rateLimitDesc(s.host)}},
 		{hdErrorPages, menuItem{title: "Error Pages", desc: errorPagesDesc(s.host)}},
 		{hdLogs, menuItem{title: "Access / Error Logs"}},
@@ -117,7 +119,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 // therefore are refused for hosts GoNix did not generate.
 var unmanagedBlocked = map[int]bool{
 	hdMaintenance: true, hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true, hdPresets: true,
-	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdRateLimit: true, hdErrorPages: true, hdLogs: true,
+	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdCountry: true, hdRateLimit: true, hdErrorPages: true, hdLogs: true,
 }
 
 // selectAction moves the menu cursor to action, reporting whether it is
@@ -160,6 +162,13 @@ func ipRulesDesc(h nginx.ListedHost) string {
 		return mutedStyle.Render("(none)")
 	}
 	return strings.Join(parts, ", ")
+}
+
+func countryDesc(h nginx.ListedHost) string {
+	if h.CountryList == "" {
+		return mutedStyle.Render("(none)")
+	}
+	return h.CountryList
 }
 
 func errorPagesDesc(h nginx.ListedHost) string {
@@ -242,6 +251,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 		return newHostIPRulesWizard(s.deps, s.host), nil
 	case hdRateLimit:
 		return newHostRateLimitWizard(s.deps, s.host), nil
+	case hdCountry:
+		return newHostCountryWizard(s.deps, s.host), nil
 	case hdErrorPages:
 		return newHostErrorPagesScreen(s.deps, s.host), nil
 	case hdLogs:

@@ -21,6 +21,13 @@ type Config struct {
 	Backup       BackupConfig       `yaml:"backup"`
 	AccessLists  AccessListsConfig  `yaml:"access_lists"`
 	ErrorPages   ErrorPagesConfig   `yaml:"error_pages"`
+	GeoIP        GeoIPConfig        `yaml:"geoip"`
+}
+
+type GeoIPConfig struct {
+	// Database is the MaxMind GeoLite2/GeoIP2 Country (or City) database
+	// used by country blocking, read by the third-party geoip2 module.
+	Database string `yaml:"database"`
 }
 
 type NginxConfig struct {
@@ -104,6 +111,9 @@ func Default() *Config {
 		ErrorPages: ErrorPagesConfig{
 			SnippetsDirectory: "/etc/nginx/snippets",
 			PagesDirectory:    "/var/www/html/error_pages",
+		},
+		GeoIP: GeoIPConfig{
+			Database: "/usr/share/GeoIP/GeoLite2-Country.mmdb",
 		},
 	}
 }

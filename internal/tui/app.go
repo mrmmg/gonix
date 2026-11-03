@@ -10,6 +10,7 @@ import (
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
+	"github.com/mrmmg/gonix/internal/geoblock"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/maintenance"
@@ -41,6 +42,7 @@ type Deps struct {
 	Maintenance *maintenance.Service
 	Upstreams   *upstreams.Service
 	Streams     *streams.Service
+	GeoBlock    *geoblock.Service
 	RateLimits  *ratelimit.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger

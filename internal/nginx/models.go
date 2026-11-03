@@ -162,6 +162,7 @@ type Host struct {
 	AccessListName string // access list applied at server level, empty if none
 	IPListName     string // IP access list included at server level, empty if none
 	RateLimit      string // rate limit included at server level, empty if none
+	CountryList    string // country list (internal/geoblock) checked at server level, empty if none
 
 	// Maintenance answers every request with 503, except for the bypass
 	// addresses kept in the host's http-level maintenance file (see
@@ -224,6 +225,9 @@ func (h Host) Validate() error {
 	}
 	if h.IPListName != "" && !ValidSnippetName(h.IPListName) {
 		return fmt.Errorf("host %q references an invalid IP access list name %q", h.ServerName, h.IPListName)
+	}
+	if h.CountryList != "" && !ValidCountryListName(h.CountryList) {
+		return fmt.Errorf("host %q references an invalid country list name %q", h.ServerName, h.CountryList)
 	}
 	if h.RateLimit != "" && !ValidSnippetName(h.RateLimit) {
 		return fmt.Errorf("host %q references an invalid rate limit name %q", h.ServerName, h.RateLimit)
