@@ -15,16 +15,18 @@ import (
 	"strings"
 
 	"github.com/mrmmg/gonix/internal/app"
+	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/diff"
 	"github.com/mrmmg/gonix/internal/snippet"
 )
 
 // Options are the global flags, accepted anywhere on the command line.
 type Options struct {
-	JSON   bool
-	DryRun bool
-	Yes    bool
-	Config string
+	JSON     bool
+	DryRun   bool
+	Yes      bool
+	Config   string
+	Instance string
 }
 
 // Builder loads the services for a configuration file path.
@@ -98,6 +100,11 @@ func splitGlobals(args []string) (Options, []string) {
 			i++
 		case strings.HasPrefix(a, "--config="):
 			o.Config = strings.TrimPrefix(a, "--config=")
+		case a == "--instance" && i+1 < len(args):
+			o.Instance = args[i+1]
+			i++
+		case strings.HasPrefix(a, "--instance="):
+			o.Instance = strings.TrimPrefix(a, "--instance=")
 		default:
 			rest = append(rest, a)
 		}
@@ -153,6 +160,13 @@ func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig s
 			return fail(fmt.Errorf("this command requires root privileges; run it with sudo"))
 		}
 		cfg := opts.Config
+		if opts.Instance != "" {
+			p, err := config.InstancePath(opts.Instance)
+			if err != nil {
+				return fail(usageErr("%v", err))
+			}
+			cfg = p
+		}
 		if cfg == "" {
 			cfg = defaultConfig
 		}
@@ -176,7 +190,7 @@ func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig s
 
 // needsServices is false for commands that work without a configuration.
 func needsServices(c command) bool {
-	return !strings.HasPrefix(c.path, "skill")
+	return !strings.HasPrefix(c.path, "skill") && c.path != "instances"
 }
 
 // done reports a successful write: the plan in dry-run mode, else msg.
@@ -324,6 +338,7 @@ Global flags (anywhere on the command line):
   --dry-run     Show the exact configuration changes without making them
   --yes, -y     Confirm destructive commands (delete, restore, overwrite)
   --config PATH Configuration file (default /etc/gonix/gonix.yaml, or GONIX_CONFIG)
+  --instance N  Manage another Nginx instance (/etc/gonix/instances/N.yaml)
 
 Every change is backed up, validated with nginx -t, rolled back if the test
 fails, reloaded, written to the audit log (actor "cli", or GONIX_ACTOR) and
@@ -349,4 +364,44 @@ Commands:
 		}
 	}
 	fmt.Fprint(w, "\n  * changes the configuration (supports --dry-run)\n\nRun 'gonix help <command>' to list only matching commands.\n")
+}
+
+func init() {
+	register(command{path: "instances", summary: "List the configured Nginx instances", run: instancesCmd})
+}
+
+func instancesCmd(e *env, args []string) error {
+	if err := noFlags("instances", args); err != nil {
+		return err
+	}
+	names, err := config.ListInstances(config.InstancesDir)
+	if err != nil {
+		return err
+	}
+	type instJSON struct {
+		Name      string `json:"name"`
+		Config    string `json:"config"`
+		ConfigDir string `json:"nginx_config_dir"`
+		Service   string `json:"service"`
+	}
+	out := []instJSON{{"(default)", config.DefaultPath, "", ""}}
+	if cfg, err := config.Load(config.DefaultPath); err == nil {
+		out[0].ConfigDir, out[0].Service = cfg.Nginx.ConfigDir, cfg.Nginx.Service
+	}
+	for _, n := range names {
+		p, _ := config.InstancePath(n)
+		j := instJSON{Name: n, Config: p}
+		if cfg, err := config.Load(p); err == nil {
+			j.ConfigDir, j.Service = cfg.Nginx.ConfigDir, cfg.Nginx.Service
+		}
+		out = append(out, j)
+	}
+	return e.show(out, func(w io.Writer) {
+		var rows [][]string
+		for _, i := range out {
+			rows = append(rows, []string{i.Name, i.ConfigDir, i.Service, i.Config})
+		}
+		table(w, "INSTANCE\tNGINX DIR\tSERVICE\tCONFIG", rows)
+		fmt.Fprintln(w, "\nUse: sudo gonix --instance <name> [command]")
+	})
 }

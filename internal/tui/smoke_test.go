@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -136,5 +137,16 @@ func TestAppNavigatesMainMenuWithoutPanicking(t *testing.T) {
 		// Pop back to the main menu for the next iteration.
 		root = model.(*rootModel)
 		root.stack = []screen{newMainMenu(deps)}
+	}
+}
+
+func TestTitleShowsInstance(t *testing.T) {
+	deps := testDeps(t)
+	deps.Config.Instance = "staging"
+	defer func() { instanceLabel = "" }()
+	model := NewApp(deps)
+	model, _ = model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	if !strings.Contains(model.View(), "GONIX · staging") {
+		t.Error("title bar does not show the instance")
 	}
 }

@@ -72,7 +72,11 @@ func Build(cfgPath string) (*Services, error) {
 	}
 	manager := nginx.NewManager(cfg.Nginx.SitesAvailable, cfg.Nginx.SitesEnabled, renderer)
 	validator := nginx.NewValidator(cfg.Nginx.BinaryPath)
+	validator.ConfigFile = cfg.Nginx.ConfigFile
 	systemSvc := system.NewService(cfg.Nginx.BinaryPath)
+	if cfg.Nginx.Service != "" {
+		systemSvc.UnitName = cfg.Nginx.Service
+	}
 	backups := backup.New(cfg.Backup.Directory, cfg.Backup.KeepCount)
 
 	auditLogger, err := audit.NewLogger(cfg.Logs.AuditFile)

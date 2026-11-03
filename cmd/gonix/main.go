@@ -19,6 +19,11 @@ import (
 )
 
 func main() {
+	// "gonix --instance staging" opens the TUI for that instance; CLI
+	// commands handle --instance themselves.
+	if !cli.IsCommand(os.Args[1:]) {
+		os.Args = append(os.Args[:1], takeInstanceFlag(os.Args[1:])...)
+	}
 	switch {
 	case len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v"):
 		fmt.Println("gonix version " + tui.Version)
@@ -45,12 +50,36 @@ func main() {
 	}
 }
 
-// configPath is the configuration file, overridable with GONIX_CONFIG.
+// configPath is the configuration file: GONIX_CONFIG, or the instance
+// named by GONIX_INSTANCE, else the default.
 func configPath() string {
 	if v := os.Getenv("GONIX_CONFIG"); v != "" {
 		return v
 	}
+	if v := os.Getenv("GONIX_INSTANCE"); v != "" {
+		if p, err := config.InstancePath(v); err == nil {
+			return p
+		}
+	}
 	return config.DefaultPath
+}
+
+// takeInstanceFlag removes "--instance NAME" from the TUI's arguments and
+// selects that instance.
+func takeInstanceFlag(args []string) []string {
+	var rest []string
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--instance" && i+1 < len(args):
+			os.Setenv("GONIX_INSTANCE", args[i+1])
+			i++
+		case strings.HasPrefix(args[i], "--instance="):
+			os.Setenv("GONIX_INSTANCE", strings.TrimPrefix(args[i], "--instance="))
+		default:
+			rest = append(rest, args[i])
+		}
+	}
+	return rest
 }
 
 func run() error {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -15,6 +17,12 @@ const DefaultPath = "/etc/gonix/gonix.yaml"
 
 // Config is the root configuration structure, mirroring the YAML file.
 type Config struct {
+	// Instance names this configuration when one server runs several
+	// Nginx instances (see InstancesDir). GoNix's own files (backups,
+	// history, audit log, access lists) then default to per-instance
+	// locations, so instances never mix.
+	Instance string `yaml:"instance,omitempty"`
+
 	Nginx        NginxConfig        `yaml:"nginx"`
 	Certificates CertificatesConfig `yaml:"certificates"`
 	Logs         LogsConfig         `yaml:"logs"`
@@ -44,6 +52,11 @@ type NginxConfig struct {
 	SitesAvailable string `yaml:"sites_available"`
 	SitesEnabled   string `yaml:"sites_enabled"`
 	BinaryPath     string `yaml:"binary_path"`
+	// ConfigFile is passed to nginx -t with -c; empty uses the binary's
+	// compiled-in default (normally <config_dir>/nginx.conf).
+	ConfigFile string `yaml:"config_file"`
+	// Service is the systemd unit reloaded after changes.
+	Service string `yaml:"service"`
 	// HTTPSnippetsDir holds http-level files GoNix generates (real client
 	// IP, rate limit zones, ...). nginx.conf must include it inside the
 	// http block, as Debian/Ubuntu/RHEL do with conf.d by default.
@@ -98,6 +111,7 @@ func Default() *Config {
 			SitesAvailable:  "/etc/nginx/sites-available",
 			SitesEnabled:    "/etc/nginx/sites-enabled",
 			BinaryPath:      "nginx",
+			Service:         "nginx",
 			HTTPSnippetsDir: "/etc/nginx/conf.d",
 			CacheDir:        "/var/cache/nginx/gonix",
 			StreamsDir:      "/etc/nginx/gonix-streams",
@@ -148,6 +162,12 @@ func Load(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parsing config file %s: %w", path, err)
 	}
+	if cfg.Instance != "" {
+		if !reInstance.MatchString(cfg.Instance) {
+			return nil, fmt.Errorf("config file %s: instance name %q may only contain letters, digits, '-' and '_'", path, cfg.Instance)
+		}
+		applyInstanceDefaults(cfg)
+	}
 	return cfg, nil
 }
 
@@ -164,4 +184,47 @@ func Save(cfg *Config, path string) error {
 		return fmt.Errorf("writing config file %s: %w", path, err)
 	}
 	return nil
+}
+
+// InstancesDir holds one configuration file per additional Nginx instance,
+// named <instance>.yaml and selected with --instance.
+const InstancesDir = "/etc/gonix/instances"
+
+var reInstance = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// InstancePath returns the configuration file of the named instance.
+func InstancePath(name string) (string, error) {
+	if !reInstance.MatchString(name) {
+		return "", fmt.Errorf("instance name %q may only contain letters, digits, '-' and '_'", name)
+	}
+	return filepath.Join(InstancesDir, name+".yaml"), nil
+}
+
+// ListInstances returns the names of the configured instances.
+func ListInstances(dir string) ([]string, error) {
+	files, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, f := range files {
+		names = append(names, strings.TrimSuffix(filepath.Base(f), ".yaml"))
+	}
+	return names, nil
+}
+
+// applyInstanceDefaults moves GoNix's own files that were left at their
+// defaults to per-instance locations.
+func applyInstanceDefaults(cfg *Config) {
+	def := Default()
+	base := filepath.Join(filepath.Dir(DefaultPath), "instances", cfg.Instance)
+	move := func(v *string, defaultValue, instanceValue string) {
+		if *v == defaultValue {
+			*v = instanceValue
+		}
+	}
+	move(&cfg.Backup.Directory, def.Backup.Directory, filepath.Join(base, "backups"))
+	move(&cfg.AccessLists.Directory, def.AccessLists.Directory, filepath.Join(base, "accesslists"))
+	move(&cfg.History.GitDir, def.History.GitDir, filepath.Join(base, "history.git"))
+	move(&cfg.Logs.AuditFile, def.Logs.AuditFile, filepath.Join(filepath.Dir(def.Logs.AuditFile), cfg.Instance+"-audit.log"))
 }

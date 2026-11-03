@@ -53,6 +53,9 @@ type rootModel struct {
 // NewApp constructs the root Bubble Tea program model, starting at the main
 // menu.
 func NewApp(deps Deps) tea.Model {
+	if deps.Config != nil {
+		instanceLabel = deps.Config.Instance
+	}
 	m := &rootModel{deps: deps}
 	m.stack = []screen{newMainMenu(deps)}
 	return m

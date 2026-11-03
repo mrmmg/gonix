@@ -6,6 +6,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// instanceLabel names the Nginx instance being managed, shown in the title
+// bar; empty for the default instance.
+var instanceLabel string
+
 // renderFrame draws the standard application chrome (title bar with version,
 // bordered content area, help footer) around body, matching the look
 // described in the project's UI/UX specification.
@@ -17,6 +21,9 @@ func renderFrame(width, height int, title string, body string, help [][2]string)
 		height = 10
 	}
 
+	if instanceLabel != "" {
+		title += " · " + instanceLabel
+	}
 	titleBar := titleBarStyle.Render(title)
 	version := versionStyle.Render("v" + Version)
 	gap := width - lipgloss.Width(titleBar) - lipgloss.Width(version) - 2
