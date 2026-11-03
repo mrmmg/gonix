@@ -13,6 +13,7 @@ import (
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/system"
 )
@@ -32,6 +33,7 @@ type Deps struct {
 	ErrorPages  *errorpages.Service
 	IPLists     *iplist.Service
 	RealIP      *realip.Service
+	Presets     *presets.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger
 	Backups     *backup.Backuper

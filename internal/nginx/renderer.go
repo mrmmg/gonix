@@ -17,6 +17,10 @@ type Renderer struct {
 	errorLogDir       string
 	accessListFileDir string
 	snippetsDir       string
+
+	// Build selects version-dependent syntax; the zero value renders
+	// syntax every supported Nginx version accepts.
+	Build BuildInfo
 }
 
 // NewRenderer builds a Renderer. accessLogDir/errorLogDir are typically both
@@ -44,6 +48,8 @@ type renderView struct {
 	AccessListFile string
 	IPListFile     string
 	ErrorPagesFile string
+	PresetFiles    []string
+	HTTP2Directive bool
 }
 
 func (r *Renderer) htpasswdPath(name string) string {
@@ -82,6 +88,10 @@ func (r *Renderer) Render(h Host) (string, error) {
 		ErrorLogPath:   filepath.Join(r.errorLogDir, h.ServerName+".error.log"),
 		AccessListFile: r.htpasswdPath(h.AccessListName),
 		IPListFile:     r.ipListPath(h.IPListName),
+		HTTP2Directive: r.Build.HTTP2Directive(),
+	}
+	for _, p := range h.Presets {
+		view.PresetFiles = append(view.PresetFiles, filepath.Join(r.snippetsDir, PresetFileName(p)))
 	}
 	if h.ErrorPagesSnippet != "" {
 		view.ErrorPagesFile = filepath.Join(r.snippetsDir, SnippetFileName(h.ErrorPagesSnippet))

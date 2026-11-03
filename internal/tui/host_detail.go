@@ -10,6 +10,7 @@ import (
 	"github.com/mrmmg/gonix/internal/certificates"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/presets"
 )
 
 // hostDetailScreen implements the per-host management submenu described in
@@ -30,6 +31,7 @@ const (
 	hdAddPath
 	hdAddCustomPath
 	hdSSL
+	hdPresets
 	hdWebSocket
 	hdProxy
 	hdAccessList
@@ -45,7 +47,7 @@ const (
 // host: it has no locations, and its server-level `return` answers before
 // access lists or error pages would ever apply.
 var redirectHostActions = map[int]bool{
-	hdToggleEnable: true, hdRedirect: true, hdAliases: true, hdSSL: true,
+	hdToggleEnable: true, hdRedirect: true, hdAliases: true, hdSSL: true, hdPresets: true,
 	hdLogs: true, hdViewConfig: true, hdBackupRestore: true, hdDelete: true,
 }
 
@@ -70,6 +72,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{hdAddPath, menuItem{title: "Add New Path"}},
 		{hdAddCustomPath, menuItem{title: "Add Custom Path"}},
 		{hdSSL, menuItem{title: "SSL Configuration"}},
+		{hdPresets, menuItem{title: "Presets", desc: presetsDesc(s.host)}},
 		{hdWebSocket, menuItem{title: "WebSocket Configuration"}},
 		{hdProxy, menuItem{title: "Proxy Configuration"}},
 		{hdAccessList, menuItem{title: "Access List"}},
@@ -107,7 +110,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 // unmanagedBlocked lists the actions that edit a host's configuration and
 // therefore are refused for hosts GoNix did not generate.
 var unmanagedBlocked = map[int]bool{
-	hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true,
+	hdRedirect: true, hdAliases: true, hdAddPath: true, hdAddCustomPath: true, hdSSL: true, hdPresets: true,
 	hdWebSocket: true, hdProxy: true, hdAccessList: true, hdIPRules: true, hdErrorPages: true, hdLogs: true,
 }
 
@@ -219,6 +222,8 @@ func (s *hostDetailScreen) dispatch(choice int) (screen, tea.Cmd) {
 		return newAddCustomPathWizard(s.deps, s.host), nil
 	case hdSSL:
 		return newSSLWizard(s.deps, s.host), nil
+	case hdPresets:
+		return newHostPresetsWizard(s.deps, s.host), nil
 	case hdWebSocket:
 		return s.toggleWebSocket()
 	case hdProxy:
@@ -385,8 +390,12 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 			ShowIf: func(v map[string]string) bool { return v["enable"] == "yes" }},
 		{Key: "http2", Label: "Enable HTTP/2?", Kind: fieldBool, BoolDefault: true,
 			ShowIf: func(v map[string]string) bool { return v["enable"] == "yes" }},
+		{Key: "http3", Label: http3Label, Kind: fieldBool, BoolDefault: h.SSL.HTTP3,
+			ShowIf: func(v map[string]string) bool {
+				return v["enable"] == "yes" && deps.Manager.Renderer.Build.SupportsHTTP3()
+			}},
 		{Key: "force", Label: "Redirect HTTP to HTTPS?", Kind: fieldBool, BoolDefault: true,
-			ShowIf: func(v map[string]string) bool { return v["enable"] == "yes" }},
+			ShowIf: func(v map[string]string) bool { return v["enable"] == "yes" && h.Mode != nginx.ModeRedirect }},
 	}
 	return newWizard("SSL Configuration — "+h.ServerName, fields, func(v map[string]string) (screen, tea.Cmd) {
 		host, err := deps.Manager.GetHost(h.FileName)
@@ -400,6 +409,7 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 				CertFile:   deps.Config.Certificates.Directory + "/" + cert + "/fullchain.pem",
 				KeyFile:    deps.Config.Certificates.Directory + "/" + cert + "/privkey.pem",
 				HTTP2:      v["http2"] == "yes",
+				HTTP3:      v["http3"] == "yes",
 				ForceHTTPS: v["force"] == "yes",
 			}
 			if host.ListenSSL == 0 {
@@ -408,6 +418,7 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 		} else {
 			host.SSL = nginx.SSLConfig{}
 		}
+		host.Presets = presets.KeepApplicable(host)
 		if _, err := deps.HostService.UpdateHost(backgroundCtx(), host); err != nil {
 			return newResultScreen(deps, "SSL Configuration", false, err.Error(), newHostDetailScreen(deps, h)), nil
 		}

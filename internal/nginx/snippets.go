@@ -30,3 +30,12 @@ const IPListFilePrefix = "gonix-ip-"
 func IPListFileName(name string) string {
 	return IPListFilePrefix + name + ".conf"
 }
+
+// PresetFilePrefix is prepended to every preset snippet file name.
+const PresetFilePrefix = "gonix-preset-"
+
+// PresetFileName returns the file name (without directory) of the preset
+// called name, e.g. "gonix-preset-security-headers.conf".
+func PresetFileName(name string) string {
+	return PresetFilePrefix + name + ".conf"
+}

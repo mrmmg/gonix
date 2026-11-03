@@ -119,6 +119,12 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 			ShowIf: func(v map[string]string) bool { return v["ssl_enable"] == "yes" },
 		},
 		wizardField{
+			Key: "ssl_http3", Label: http3Label, Kind: fieldBool,
+			ShowIf: func(v map[string]string) bool {
+				return v["ssl_enable"] == "yes" && deps.Manager.Renderer.Build.SupportsHTTP3()
+			},
+		},
+		wizardField{
 			Key: "ssl_force", Label: "Redirect HTTP to HTTPS?", Kind: fieldBool, BoolDefault: true,
 			// A redirect host already sends HTTP straight to its target.
 			ShowIf: func(v map[string]string) bool { return v["ssl_enable"] == "yes" && !isRedirect(v) },
@@ -144,6 +150,9 @@ const (
 	modeStatic       = "Direct / Static"
 	modeRedirect     = "Redirect"
 )
+
+// http3Label is only asked when the installed Nginx supports QUIC.
+const http3Label = "Enable HTTP/3 (QUIC)? Requires UDP port 443 to be open in the firewall."
 
 func isReverseProxy(v map[string]string) bool { return v["mode"] == modeReverseProxy }
 func isRedirect(v map[string]string) bool     { return v["mode"] == modeRedirect }
@@ -263,6 +272,7 @@ func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 	if v["ssl_enable"] == "yes" {
 		h.SSL.Enabled = true
 		h.SSL.HTTP2 = v["ssl_http2"] == "yes"
+		h.SSL.HTTP3 = v["ssl_http3"] == "yes"
 		h.SSL.ForceHTTPS = v["ssl_force"] == "yes"
 		certName := v["ssl_cert"]
 		if certName == "" {

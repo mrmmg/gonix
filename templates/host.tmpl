@@ -5,9 +5,15 @@
 server {
     listen {{ .Host.Listen }};
 {{- if .Host.SSL.Enabled }}
-    listen {{ .Host.ListenSSL }} ssl{{ if .Host.SSL.HTTP2 }} http2{{ end }};
+    listen {{ .Host.ListenSSL }} ssl{{ if and .Host.SSL.HTTP2 (not .HTTP2Directive) }} http2{{ end }};
+{{- if .Host.SSL.HTTP3 }}
+    listen {{ .Host.ListenSSL }} quic;
+{{- end }}
 {{- end }}
     server_name {{ .Host.ServerName }}{{ range .Host.ServerAlias }} {{ . }}{{ end }};
+{{- if and .Host.SSL.Enabled .Host.SSL.HTTP2 .HTTP2Directive }}
+    http2 on;
+{{- end }}
 
 {{- if .Host.SSL.Enabled }}
 {{- if and .Host.SSL.ForceHTTPS (ne (printf "%v" .Host.Mode) "redirect") }}
@@ -19,6 +25,12 @@ server {
 
     ssl_certificate {{ .Host.SSL.CertFile }};
     ssl_certificate_key {{ .Host.SSL.KeyFile }};
+{{- if .Host.SSL.HTTP3 }}
+    add_header Alt-Svc 'h3=":{{ .Host.ListenSSL }}"; ma=86400' always;
+{{- end }}
+{{- end }}
+{{- range .PresetFiles }}
+    include {{ . }};
 {{- end }}
 
 {{- if .Host.AccessListName }}

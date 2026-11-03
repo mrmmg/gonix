@@ -30,6 +30,8 @@ var (
 	reMaxBodySize   = regexp.MustCompile(`(?m)^\s*client_max_body_size\s+([^;]+);`)
 	reRedirect      = regexp.MustCompile(`(?m)^\s*# GoNix redirect host\s*\n\s*return\s+(\d{3})\s+([^;]+);`)
 	reIPListInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + IPListFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	rePresetInc     = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + PresetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
+	reHTTP2On       = regexp.MustCompile(`(?m)^\s*http2\s+on\s*;`)
 	reSatisfyAny    = regexp.MustCompile(`(?m)^\s*satisfy\s+any\s*;`)
 	reErrorPagesInc = regexp.MustCompile(`(?m)^\s*include\s+\S*/` + SnippetFilePrefix + `([A-Za-z0-9_-]+)\.conf\s*;`)
 )
@@ -81,6 +83,10 @@ func ParseManagedHost(content string) (Host, error) {
 	}
 	for _, m := range reListen.FindAllStringSubmatch(content, -1) {
 		port, _ := strconv.Atoi(m[1])
+		if strings.Contains(m[2], "quic") {
+			h.SSL.HTTP3 = true
+			continue
+		}
 		if strings.Contains(m[2], "ssl") {
 			h.ListenSSL = port
 			h.SSL.Enabled = true
@@ -139,6 +145,12 @@ func ParseManagedHost(content string) (Host, error) {
 		h.IPListName = m[1]
 	}
 	h.SatisfyAny = reSatisfyAny.MatchString(serverLevel)
+	for _, m := range rePresetInc.FindAllStringSubmatch(serverLevel, -1) {
+		h.Presets = append(h.Presets, m[1])
+	}
+	if reHTTP2On.MatchString(serverLevel) {
+		h.SSL.HTTP2 = true
+	}
 
 	h.Locations = parseLocations(content)
 	return h, nil

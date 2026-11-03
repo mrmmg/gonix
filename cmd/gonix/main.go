@@ -19,6 +19,7 @@ import (
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/snippet"
 	"github.com/mrmmg/gonix/internal/system"
@@ -83,6 +84,11 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("initializing template renderer: %w", err)
 	}
+	// Version-dependent syntax (e.g. `http2 on;` on 1.25.1+); an unknown
+	// build falls back to syntax every version accepts.
+	if build, err := nginx.DetectBuild(context.Background(), cfg.Nginx.BinaryPath); err == nil {
+		renderer.Build = build
+	}
 	manager := nginx.NewManager(cfg.Nginx.SitesAvailable, cfg.Nginx.SitesEnabled, renderer)
 	validator := nginx.NewValidator(cfg.Nginx.BinaryPath)
 	systemSvc := system.NewService(cfg.Nginx.BinaryPath)
@@ -145,6 +151,7 @@ func run() error {
 		ErrorPages:  errorPagesService,
 		IPLists:     &iplist.Service{Store: ipListStore, Manager: manager, Writer: snippetWriter},
 		RealIP:      &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
+		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
 		SystemSvc:   systemSvc,
 		Audit:       auditLogger,
 		Backups:     backups,

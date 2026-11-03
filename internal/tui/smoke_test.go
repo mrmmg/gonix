@@ -13,6 +13,7 @@ import (
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
 	"github.com/mrmmg/gonix/internal/nginx"
+	"github.com/mrmmg/gonix/internal/presets"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/snippet"
 	"github.com/mrmmg/gonix/internal/system"
@@ -79,6 +80,7 @@ func testDeps(t *testing.T) Deps {
 		},
 		IPLists:   &iplist.Service{Store: ipListStore, Manager: manager, Writer: writer},
 		RealIP:    &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
+		Presets:   &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
 		SystemSvc: systemSvc,
 		Audit:     auditLogger,
 		Backups:   backups,
