@@ -157,6 +157,28 @@ server {
 
 Options: 301/302/307/308, and whether to preserve the path and query string.
 
+**Current workaround (before this exists).** Today GoNix only has `Reverse Proxy` and
+`Direct / Static` modes, and the only built-in redirect is *Force HTTPS* (same domain). A
+cross-domain redirect can be built from existing pieces:
+
+1. Add a `Direct / Static` host for `domain.net` (any root, it is never served).
+2. Enable SSL for it (a certificate for `domain.net` itself is required for HTTPS).
+3. Add a custom location `/` containing `return 301 https://domain.com$request_uri;`.
+
+Limitations: HTTP requests take two hops when *Force HTTPS* is on, only `/` is covered, the
+wizard cannot add `www.domain.net` as an alias, and the root field is meaningless.
+
+**Planned design.** A third host mode, `Redirect`, with:
+
+- target URL/domain (validated), redirect code (301/302/307/308, default 301),
+- "preserve path and query" toggle (`$request_uri`), on by default,
+- aliases (`www.domain.net`), which also fixes the missing alias support in the wizard,
+- optional SSL, with a single `return` at server level (no root, no locations), so HTTP and
+  HTTPS both go straight to the target in one hop.
+
+Touches `nginx.HostMode`, `Host.Validate`, `host.tmpl`, the parser (round-trip of the new
+mode) and the add-host wizard; renderer and parser get round-trip tests.
+
 ### Maintenance mode
 
 A per-host toggle that returns 503 with a custom page while letting admin IPs through. It reuses
