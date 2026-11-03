@@ -4,6 +4,28 @@ A working list of features that could make GoNix a more complete Nginx managemen
 by suggested priority (value to users vs. implementation cost). Nothing here is committed to yet;
 it is a place to think before building.
 
+## Implementation status
+
+Everything below is implemented on `feat/next-release`, with unit tests, TUI tests and (when
+`nginx` is installed) real `nginx -t` and behavioural tests:
+
+| Idea | Status |
+| --- | --- |
+| IP allow/deny lists, `satisfy`, real client IP | Done (TUI + CLI) |
+| Host presets (headers, HSTS, gzip, static cache, proxy cache, sensitive files, bad bots) | Done |
+| Rate limiting presets | Done |
+| Redirect hosts, domain aliases, maintenance mode | Done |
+| Live log viewer with filters, summary and "block IP" | Done |
+| Config Check (lint) and upstream health | Done |
+| Upstream groups & load balancing | Done (passive health checks only) |
+| Stream (TCP/UDP) proxy | Done (needs the stream module) |
+| GeoIP country blocking | Done (needs the geoip2 module) |
+| HTTP/2 syntax per Nginx version, HTTP/3 | Done |
+| OCSP stapling | Skipped — Let's Encrypt shut down its OCSP responders in 2025 |
+| Git configuration history, export/import, NPM import | Done |
+| Multiple Nginx instances | Done |
+| CLI with `--json`/`--dry-run`, agent skill, MCP server | Done |
+
 ## Guiding principle
 
 Every feature below should follow the same rule GoNix already follows for access lists and error

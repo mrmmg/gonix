@@ -38,6 +38,10 @@
 - [صفحه‌های خطا (Error Pages)](#صفحههای-خطا-error-pages)
 - [لاگ‌ها](#لاگها)
 - [پشتیبان‌گیری (Backups)](#پشتیبانگیری-backups)
+- [خط فرمان (CLI)](#خط-فرمان-cli)
+- [عامل‌های هوش مصنوعی (Skill و MCP)](#عاملهای-هوش-مصنوعی-skill-و-mcp)
+- [چند نمونه‌ی Nginx](#چند-نمونهی-nginx)
+- [تاریخچه‌ی پیکربندی، خروجی و ورودی](#تاریخچهی-پیکربندی-خروجی-و-ورودی)
 - [توسعه](#توسعه)
 - [امکانات آینده](#امکانات-آینده)
 - [Star History](#star-history)
@@ -166,6 +170,40 @@ curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash 
   خطا در audit log ثبت می‌شود. Nginx هیچ‌وقت با پیکربندی خراب رها نمی‌شود.
 - **همزیستی با پیکربندی دستی** — هاست‌هایی که GoNix نساخته، به‌صورت read-only و با نشانگر
   واضح `[unmanaged]` نمایش داده می‌شوند، نه اینکه بی‌سروصدا بازنویسی شوند.
+- **هاست ریدایرکت و نام‌های اضافه (alias)** — ریدایرکت کامل یک دامنه (مثلاً `example.net` ←
+  `https://example.com`) با کد 301/302/307/308، با حفظ یا حذف مسیر، و پاسخ‌دادن به چند نام
+  (مثل `www.example.com`) از یک هاست.
+- **فهرست‌های دسترسی IP** — فهرست‌های allow/block از IP و رنج CIDR که روی یک هاست یا یک location
+  اعمال می‌شوند و می‌شود آن‌ها را با Basic Auth ترکیب کرد («IP *یا* رمز» با `satisfy any`).
+- **IP واقعی کاربر** — اعتماد به Cloudflare (با رنج‌های داخلی یا تازه دانلودشده) یا پراکسی‌های
+  خودتان، تا لاگ‌ها، فهرست‌های IP و rate limit آدرس واقعی بازدیدکننده را ببینند، نه پراکسی را.
+- **پیش‌تنظیم‌های هاست (presets)** — با یک انتخاب: هدرهای امنیتی، HSTS، gzip، کش فایل‌های
+  استاتیک، کش پراکسی، مسدودکردن فایل‌های حساس (`.env`، `.git`، ...) و ربات‌های مخرب.
+- **محدودسازی نرخ (rate limiting)** — محدودیت‌های نام‌دار درخواست/اتصال (با پیش‌تنظیم‌های
+  `general`، `api` و `login`) برای هر هاست یا هر location.
+- **حالت تعمیر (maintenance)** — نمایش صفحه‌ی 503 برای یک هاست، در حالی که IPهای خودتان سایت را
+  می‌بینند.
+- **HTTP/2 و HTTP/3** — سینتکس درست `http2` متناسب با نسخه‌ی نصب‌شده‌ی Nginx؛ HTTP/3 (QUIC) فقط
+  وقتی پیشنهاد می‌شود که build نصب‌شده‌ی Nginx از آن پشتیبانی کند.
+- **لاگ زنده** — دنبال‌کردن درخواست‌های یک هاست با فیلتر (`status:5xx`، `ip:`، `path:`)، خلاصه‌ی
+  پرتکرارترین IPها/مسیرها/کدها، و مسدودکردن یک IP مزاحم مستقیماً از همان صفحه.
+- **بررسی پیکربندی (Config Check)** — پیدا کردن نام‌های تکراری، فایل‌های گم‌شده، گواهی‌های رو به
+  انقضا یا ناهماهنگ، upstreamهای در دسترس نبودنی، snippetهای بلااستفاده و اشتباه‌های رایج دیگر.
+- **گروه‌های upstream** — توزیع بار (round robin، least connections، IP hash) با وزن، سرور
+  پشتیبان و health check غیرفعال (passive).
+- **پراکسی stream (TCP/UDP)** — فوروارد دیتابیس، سرور بازی یا هر پورت TCP/UDP، به‌صورت اختیاری
+  پشت یک فهرست IP.
+- **مسدودسازی کشوری** — اجازه یا منع کشورها برای هر هاست، با ماژول geoip2 و دیتابیس MaxMind.
+- **تاریخچه‌ی پیکربندی** — هر تغییر موفق در یک مخزن Git بیرون از `/etc/nginx` کامیت می‌شود؛
+  diffها را ببینید و هر وضعیت قبلی را برگردانید.
+- **خروجی/ورودی (export/import)** — انتقال همه‌ی چیزهایی که GoNix مدیریت می‌کند به یک سرور دیگر،
+  در قالب یک فایل.
+- **درون‌ریزی از Nginx Proxy Manager** — آوردن proxy hostها، ریدایرکت‌ها، streamها، گواهی‌ها و
+  access listها از یک نصب موجود NPM.
+- **خط فرمان و عامل‌های هوش مصنوعی** — هر کاری یک دستور قابل‌اسکریپت هم هست، با `--json` و
+  `--dry-run`، به‌علاوه‌ی یک skill و یک سرور MCP، تا ابزارهایی مثل Claude Code بتوانند Nginx را
+  با ایمنی مدیریت کنند.
+- **چند نمونه‌ی Nginx** — مدیریت چند نصب Nginx از یک GoNix با `--instance`.
 
 ## پیش‌نیازها
 
@@ -174,6 +212,13 @@ curl -fsSL https://raw.githubusercontent.com/mrmmg/gonix/main/install.sh | bash 
 - Nginx
 - `systemctl` (systemd)
 - اختیاری: `logrotate` (اگر نباشد، چرخش لاگ فقط با یک هشدار رد می‌شود)
+- اختیاری: `git`، برای [تاریخچه‌ی پیکربندی](#تاریخچهی-پیکربندی-خروجی-و-ورودی)
+- اختیاری: ماژول geoip2 برای Nginx (در Debian/Ubuntu: `libnginx-mod-http-geoip2`) و یک دیتابیس
+  کشوری MaxMind، فقط برای مسدودسازی کشوری
+- اختیاری: ماژول stream (در Debian/Ubuntu: `libnginx-mod-stream`)، فقط برای پراکسی TCP/UDP
+- فایل‌های سطح http که GoNix می‌سازد در `/etc/nginx/conf.d` (`nginx.http_snippets_dir`) نوشته
+  می‌شوند و `nginx.conf` باید این مسیر را داخل بلوک `http` خود include کند — که در Debian، Ubuntu
+  و RHEL پیش‌فرض است. اگر نکند، Config Check هشدار می‌دهد.
 - اختیاری: `certbot`، فقط برای امکان [دریافت گواهی Wildcard (Certbot)](#دریافت-گواهی-wildcard-certbot)
   لازم است (به همراه دامنه‌ای که روی Cloudflare مدیریت می‌شود)
 
@@ -301,6 +346,16 @@ go test ./... -run TestRenderHost -v   # فقط یک تست، به‌صورت ve
 go test ./... -cover                   # همراه با خلاصه‌ی پوشش تست (coverage)
 ```
 
+اگر `nginx` نصب باشد، تست‌های اضافه‌ای هر پیکربندی تولیدشده را با یک `nginx -t` واقعی می‌سنجند،
+و بعضی‌شان Nginx را روی پورت‌های آزاد محلی بالا می‌آورند تا رفتار را هم بررسی کنند (ریدایرکت،
+فهرست IP، rate limit، حالت تعمیر، کش). اگر `nginx` نصب نباشد، این تست‌ها خودکار رد می‌شوند.
+بررسی‌های پراکسی stream به ماژول stream نیاز دارند، برای همین فقط با درخواست شما در Docker اجرا
+می‌شوند:
+
+```bash
+GONIX_DOCKER_TEST=1 go test ./internal/streams/ -run Docker
+```
+
 ## ساختار پروژه
 
 ```text
@@ -321,8 +376,20 @@ gonix/
 │   ├── audit/             لاگ حسابرسیِ append-only
 │   ├── backup/            پشتیبان‌گیری/بازیابی پیکربندی
 │   ├── system/             کنترل systemctl + مانیتورینگ process و پورت بر پایه‌ی /proc
-│   ├── logs/               کمک‌تابع‌های مسیر لاگ + تولید پیکربندی logrotate
-│   └── config/             پیکربندی متمرکز و مبتنی بر YAML (بدون مسیر hard-code شده)
+│   ├── logs/               کمک‌تابع‌های مسیر لاگ، پیکربندی logrotate، پارس access log برای لاگ زنده
+│   ├── config/             پیکربندی متمرکز و مبتنی بر YAML (بدون مسیر hard-code شده)
+│   ├── snippet/           نوشتن مجموعه‌ای از فایل‌ها با یک nginx -t، rollback و dry-run
+│   ├── iplist/ realip/ presets/ ratelimit/ maintenance/ geoblock/
+│   │                      یک پکیج برای هر قابلیت مبتنی بر snippet
+│   ├── upstreams/ streams/ health/
+│   │                      گروه‌های upstream، پراکسی TCP/UDP و بررسی در دسترس بودن upstreamها
+│   ├── lint/              بررسی پیکربندی (Config Check)
+│   ├── history/ transfer/ npm/ diff/
+│   │                      تاریخچه‌ی Git، خروجی/ورودی، درون‌ریزی از NPM، diff یکپارچه
+│   ├── app/               ساخت همه‌ی سرویس‌ها از روی پیکربندی (مشترک بین TUI و CLI)
+│   ├── cli/               دستورات غیرتعاملی و سرور MCP
+│   └── nginxtest/         کمک‌تابع تست که یک nginx واقعی را روی پورت‌های آزاد اجرا می‌کند
+├── skills/gonix/          skill عامل‌های هوش مصنوعی (SKILL.md)، embed شده در باینری
 ├── templates/             قالب‌های پیکربندی Nginx که embed شده‌اند (host.tmpl، location.tmpl،
 │                          errorpages.tmpl)
 ├── configs/
@@ -560,7 +627,9 @@ include /etc/nginx/snippets/gonix-error-pages-default.conf;
 - **لاگ‌های access/error**: به‌ازای هر هاست، در `/var/log/nginx/<domain>.access.log` و
   `<domain>.error.log`، که مستقل از هم از صفحه‌ی مدیریت هر هاست فعال/غیرفعال می‌شوند.
 - **لاگ حسابرسی (audit log)**: `/var/log/gonix/audit.log`، هر خط برای یک اکشن:
-  `2026-09-15 10:32:11 | user=root | action=host_created | target=example.com | result=success`
+  `2026-09-15 10:32:11 | user=root | action=host_created | target=example.com | result=success`.
+  تغییراتی که از خط فرمان انجام شوند `| actor=cli` (یا مقدار `GONIX_ACTOR`) را هم دارند، و هر
+  نمونه‌ی اضافه‌ی Nginx فایل جداگانه‌ی `/var/log/gonix/<instance>-audit.log` دارد.
 - **چرخش (rotation)**: هر دو با `logrotate` استاندارد چرخانده می‌شوند، که هر دو نصب‌کننده خودشان
   در `/etc/logrotate.d/gonix` پیکربندیش می‌کنند.
 
@@ -578,6 +647,89 @@ timestamp در `/etc/gonix/backups/` می‌گذارد. بعد از نوشتن،
 پاک می‌شوند. صفحه‌ی «Backup / Restore» روی هر هاست هم به شما اجازه می‌دهد هر نسخه‌ی نگه‌داشته‌شده
 را ببینید و دستی برگردانید، با همان مسیر ایمنِ تست-قبل-از-reload.
 
+## خط فرمان (CLI)
+
+`gonix` را بدون آرگومان اجرا کنید تا TUI باز شود، یا با یک دستور برای اسکریپت، CI و عامل‌های
+هوش مصنوعی:
+
+```bash
+sudo gonix host add app.example.com --upstream http://127.0.0.1:3000 --ssl app.example.com --presets security-headers,hsts
+sudo gonix host add example.net --redirect https://example.com --code 301
+sudo gonix iplist create office --mode allow --entries "203.0.113.0/24 198.51.100.7"
+sudo gonix host set app.example.com --ip-list office --dry-run   # فقط diff را نشان می‌دهد
+sudo gonix logs app.example.com --filter "status:5xx" --summary
+sudo gonix check --json
+```
+
+- `--json` خروجی قابل‌خواندن برای ماشین می‌دهد؛ خطاها به شکل `{"ok":false,"error":"..."}` با کد
+  خروج ۱ هستند (خطای نحوه‌ی استفاده با کد ۲).
+- `--dry-run` دقیقاً فایل‌هایی را که تغییر می‌کنند به‌صورت diff نشان می‌دهد، بدون اینکه به چیزی
+  دست بزند.
+- دستورات مخرب (حذف، بازگردانی، بازنویسی) به `--yes` نیاز دارند.
+- هر تغییر از همان مسیر TUI می‌گذرد: پشتیبان‌گیری ← `nginx -t` ← reload یا rollback.
+
+`gonix help` همه‌ی دستورات را نشان می‌دهد، و `gonix help <command>` فقط دستورات مرتبط را.
+
+## عامل‌های هوش مصنوعی (Skill و MCP)
+
+GoNix یک skill همراه خودش دارد که به عامل‌های برنامه‌نویسی هوش مصنوعی یاد می‌دهد چطور با ایمنی
+از CLI استفاده کنند (اول بررسی، قبل از تغییر `--dry-run`، هیچ‌وقت ویرایش دستی `/etc/nginx`):
+
+```bash
+gonix skill install            # Claude Code، برای کاربر شما (~/.claude/skills/gonix)
+gonix skill install --project  # فقط برای پروژه‌ی فعلی (./.claude/skills/gonix)
+gonix skill print              # چاپ SKILL.md برای هر عامل دیگری
+```
+
+یک سرور [MCP](https://modelcontextprotocol.io) روی stdio هم دارد که ابزارهای typed آن به
+دستورات CLI نگاشت می‌شوند:
+
+```bash
+claude mcp add gonix -- sudo -n gonix mcp
+```
+
+`sudo -n` به یک قانون sudoers نیاز دارد که اجازه دهد کاربر شما `gonix` را بدون رمز اجرا کند.
+تغییراتی که عامل‌ها انجام می‌دهند با `actor=mcp` در audit log ثبت می‌شوند.
+
+## چند نمونه‌ی Nginx
+
+هر نصب اضافه‌ی Nginx فایل پیکربندی خودش را در `/etc/gonix/instances/` دارد:
+
+```bash
+sudo gonix instances                              # فهرست نمونه‌ها
+sudo gonix --instance staging                     # باز کردن TUI برای /etc/gonix/instances/staging.yaml
+sudo gonix --instance staging host list           # یا اجرای یک دستور روی آن
+```
+
+مسیرهایی که روی مقدار پیش‌فرض مانده‌اند (پشتیبان‌ها، تاریخچه، audit log، access listها) خودکار
+برای هر نمونه جدا می‌شوند. برای Nginxی که نسخه‌ی سیستمی نیست، `nginx.config_file` و
+`nginx.service` را تنظیم کنید. `GONIX_INSTANCE` و `GONIX_CONFIG` هم مثل همان فلگ‌ها کار می‌کنند.
+
+## تاریخچه‌ی پیکربندی، خروجی و ورودی
+
+وقتی `history.enabled` روشن باشد (پیش‌فرض) و `git` نصب باشد، هر تغییر موفق در یک مخزن Git در
+`/etc/gonix/history.git` کامیت می‌شود که work tree آن `/etc/nginx` است — هیچ چیزی داخل
+`/etc/nginx` اضافه نمی‌شود. «Configuration History» در TUI، یا `gonix history list|show|restore`،
+هر تغییر را به‌صورت diff نشان می‌دهد و هر وضعیت قبلی را برمی‌گرداند (مثل بقیه‌ی کارها، اول با
+`nginx -t` تست می‌شود).
+
+برای انتقال به یک سرور جدید:
+
+```bash
+sudo gonix export gonix-backup.tar.gz                 # روی سرور قدیمی
+sudo gonix import gonix-backup.tar.gz --dry-run       # روی سرور جدید: ببینید چه چیزی تغییر می‌کند
+sudo gonix import gonix-backup.tar.gz
+```
+
+برای مهاجرت از Nginx Proxy Manager، GoNix را به دایرکتوری داده‌ی NPM ارجاع دهید:
+
+```bash
+sudo gonix npm-import --data /opt/npm/data --letsencrypt /opt/npm/letsencrypt --dry-run
+```
+
+هر چیزی که قابل نگاشت نباشد (پیکربندی پیشرفته‌ی سفارشی، هاست‌هایی که فقط wildcard دارند) به‌جای
+حدس‌زدن، گزارش می‌شود.
+
 ## توسعه
 
 مشارکت‌ها باید از قراردادهای استاندارد Go پیروی کنند: `gofmt`، `go vet`، و تست برای هر رفتار
@@ -590,15 +742,11 @@ timestamp در `/etc/gonix/backups/` می‌گذارد. بعد از نوشتن،
 اینا عمداً هنوز پیاده‌سازی نشده‌اند، ولی معماری پروژه برایشان طراحی شده:
 
 - ارائه‌دهندگان DNS challenge بیشتر برای گواهی Wildcard (فعلاً فقط Cloudflare پشتیبانی می‌شود)
-- فهرست‌های allow/deny بر اساس IP و محدودسازی نرخ (rate limiting)
-- هدرهای امنیتی، فشرده‌سازی و پیش‌تنظیم‌های caching
 - یکپارچه‌سازی WAF / ModSecurity
-- گروه‌های upstream، توزیع بار (load balancing) و health check
-- HTTP/3، OCSP stapling، پیش‌تنظیم‌های HSTS
-- حالت تعمیر (maintenance mode)
-- درون‌ریزی/دیف‌گیری پیکربندی‌های دلخواه موجود Nginx
-- تاریخچه‌ی پیکربندی مبتنی بر Git و rollback
-- پشتیبانی از چند نمونه (instance) Nginx
+- health check فعال (Nginx متن‌باز فقط health check غیرفعال دارد)
+- درون‌ریزی پیکربندی‌های دستی و دلخواه Nginx به‌عنوان هاست مدیریت‌شده
+
+OCSP stapling عمداً اضافه نشده است: Let's Encrypt از سال ۲۰۲۵ سرویس OCSP خود را متوقف کرده است.
 
 ## Star History
 
