@@ -100,9 +100,12 @@ type SSLConfig struct {
 
 // ProxyConfig groups the reverse proxy specific settings of a location.
 type ProxyConfig struct {
-	UpstreamScheme   string // "http" or "https"
-	UpstreamHost     string
-	UpstreamPort     int
+	UpstreamScheme string // "http" or "https"
+	UpstreamHost   string
+	UpstreamPort   int
+	// UpstreamGroup, when set, proxies to the named upstream group (see
+	// internal/upstreams) instead of UpstreamHost:UpstreamPort.
+	UpstreamGroup    string
 	HTTPVersion      string // "1.0", "1.1"
 	ConnectTimeout   string // e.g. "60s"
 	ReadTimeout      string
@@ -117,8 +120,19 @@ type ProxyConfig struct {
 
 // UpstreamURL renders the proxy_pass target, e.g. http://127.0.0.1:8080.
 func (p ProxyConfig) UpstreamURL() string {
+	if p.UpstreamGroup != "" {
+		return p.UpstreamScheme + "://" + UpstreamGroupName(p.UpstreamGroup)
+	}
 	return fmt.Sprintf("%s://%s:%d", p.UpstreamScheme, p.UpstreamHost, p.UpstreamPort)
 }
+
+// UpstreamGroupPrefix is prepended to every upstream group's Nginx name, so
+// a group can never be mistaken for a real host name in proxy_pass.
+const UpstreamGroupPrefix = "gonix_"
+
+// UpstreamGroupName returns the Nginx `upstream` name of the group called
+// name, e.g. "gonix_app".
+func UpstreamGroupName(name string) string { return UpstreamGroupPrefix + name }
 
 // Location represents a single `location` block inside a server block.
 type Location struct {
@@ -203,6 +217,9 @@ func (h Host) Validate() error {
 		}
 		if !loc.IsCustom && loc.Proxy == nil {
 			return fmt.Errorf("location %q in host %q is not custom but has no proxy configuration", loc.Path, h.ServerName)
+		}
+		if loc.Proxy != nil && loc.Proxy.UpstreamGroup != "" && !ValidSnippetName(loc.Proxy.UpstreamGroup) {
+			return fmt.Errorf("location %q in host %q references an invalid upstream group %q", loc.Path, h.ServerName, loc.Proxy.UpstreamGroup)
 		}
 	}
 	if h.IPListName != "" && !ValidSnippetName(h.IPListName) {

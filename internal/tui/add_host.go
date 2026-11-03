@@ -40,18 +40,21 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 			Kind:    fieldChoice,
 			Options: []string{modeReverseProxy, modeStatic, modeRedirect},
 		},
-		// --- Reverse proxy questions ---
+	}
+	// --- Reverse proxy questions ---
+	fields = append(fields, upstreamTargetField(deps, "", isReverseProxy)...)
+	fields = append(fields, []wizardField{
 		{
 			Key: "upstream_host", Label: "Upstream host/IP:", Kind: fieldText,
 			Placeholder: "127.0.0.1",
 			Validate:    requireNonEmpty("upstream host"),
-			ShowIf:      isReverseProxy,
+			ShowIf:      isSingleReverseProxy,
 		},
 		{
 			Key: "upstream_port", Label: "Upstream port:", Kind: fieldText,
 			Placeholder: "8080",
 			Validate:    validatePort,
-			ShowIf:      isReverseProxy,
+			ShowIf:      isSingleReverseProxy,
 		},
 		{
 			Key: "upstream_scheme", Label: "Upstream protocol:", Kind: fieldChoice,
@@ -90,7 +93,7 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 			Validate:    requireNonEmpty("root directory"),
 			ShowIf:      func(v map[string]string) bool { return v["mode"] == modeStatic },
 		},
-	}
+	}...)
 	fields = append(fields, redirectFields(nginx.RedirectConfig{Code: 301, PreservePath: true}, isRedirect)...)
 	fields = append(fields, []wizardField{
 		// --- SSL ---
@@ -156,6 +159,9 @@ const http3Label = "Enable HTTP/3 (QUIC)? Requires UDP port 443 to be open in th
 
 func isReverseProxy(v map[string]string) bool { return v["mode"] == modeReverseProxy }
 func isRedirect(v map[string]string) bool     { return v["mode"] == modeRedirect }
+func isSingleReverseProxy(v map[string]string) bool {
+	return isReverseProxy(v) && isSingleUpstream(v)
+}
 
 // redirectFields asks for a redirect host's target, status code and path
 // handling, prefilled from current. showIf may be nil.
@@ -255,6 +261,7 @@ func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 				UpstreamScheme:   v["upstream_scheme"],
 				UpstreamHost:     v["upstream_host"],
 				UpstreamPort:     port,
+				UpstreamGroup:    upstreamGroupChoice(v),
 				HTTPVersion:      v["http_version"],
 				WebSocket:        v["websocket"] == "yes",
 				ForwardHost:      v["forward_headers"] == "yes",

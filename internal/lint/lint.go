@@ -18,6 +18,7 @@ import (
 	"github.com/mrmmg/gonix/internal/health"
 	"github.com/mrmmg/gonix/internal/nginx"
 	"github.com/mrmmg/gonix/internal/presets"
+	"github.com/mrmmg/gonix/internal/upstreams"
 )
 
 // Severity ranks findings.
@@ -102,7 +103,7 @@ func (c *Checker) Run(ctx context.Context) ([]Finding, error) {
 			maintenance[nginx.MaintenanceFileName(h.ServerName)] = true
 		}
 		if c.CheckUpstreams && h.Enabled {
-			for _, u := range health.Upstreams(h.Host) {
+			for _, u := range c.upstreamAddrs(h.Host) {
 				if upstreamHosts[u] == nil {
 					upstreams = append(upstreams, u)
 				}
@@ -179,6 +180,9 @@ func (c *Checker) checkHost(h nginx.Host, add func(Severity, string, string, ...
 			need(snippet(nginx.RateLimitFileName, loc.RateLimit), "rate limit")
 			need(filepath.Join(c.HTTPDir, nginx.RateLimitFileName(loc.RateLimit)), "rate limit zone")
 		}
+		if loc.Proxy != nil && loc.Proxy.UpstreamGroup != "" {
+			need(filepath.Join(c.HTTPDir, nginx.UpstreamFileName(loc.Proxy.UpstreamGroup)), "upstream group")
+		}
 		if !loc.IsCustom {
 			continue
 		}
@@ -220,6 +224,27 @@ func (c *Checker) checkCertificate(h nginx.Host, add func(Severity, string, stri
 	}
 }
 
+// upstreamAddrs returns the backends h proxies to, including the servers of
+// its upstream groups.
+func (c *Checker) upstreamAddrs(h nginx.Host) []string {
+	addrs := health.Upstreams(h)
+	for _, loc := range h.Locations {
+		if loc.Proxy == nil || loc.Proxy.UpstreamGroup == "" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(c.HTTPDir, nginx.UpstreamFileName(loc.Proxy.UpstreamGroup)))
+		if err != nil {
+			continue
+		}
+		for _, s := range upstreams.Parse(loc.Proxy.UpstreamGroup, string(data)).Servers {
+			if !s.Backup {
+				addrs = append(addrs, s.Address)
+			}
+		}
+	}
+	return addrs
+}
+
 func (c *Checker) expiryWarning() time.Duration {
 	if c.ExpiryWarning > 0 {
 		return c.ExpiryWarning
@@ -256,6 +281,9 @@ func (c *Checker) checkSharedFiles(add func(Severity, string, string, ...any), u
 				continue
 			}
 			httpFiles++
+			if strings.HasPrefix(n, nginx.UpstreamFilePrefix) && !used[filepath.Join(c.HTTPDir, n)] {
+				add(Info, filepath.Join(c.HTTPDir, n), "upstream group is not used by any GoNix host")
+			}
 			if strings.HasPrefix(n, nginx.MaintenanceFilePrefix) && !maintenance[n] {
 				add(Info, filepath.Join(c.HTTPDir, n), "maintenance file of a host that is no longer in maintenance mode")
 			}

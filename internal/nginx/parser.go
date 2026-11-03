@@ -257,6 +257,10 @@ func parseUpstreamURL(u string, pp *ProxyConfig) {
 		rest = strings.TrimPrefix(u, "http://")
 	}
 	pp.UpstreamScheme = scheme
+	if group, ok := strings.CutPrefix(rest, UpstreamGroupPrefix); ok && !strings.Contains(group, ":") {
+		pp.UpstreamGroup = group
+		return
+	}
 	host := rest
 	port := 80
 	if i := strings.LastIndexByte(rest, ':'); i >= 0 {

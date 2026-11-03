@@ -76,3 +76,12 @@ func MaintenanceVar(serverName string) string {
 // snippets serve pages under (errorpages.URIPrefix and TemplateURI).
 // Maintenance mode exempts it, so a custom 503 page can still be served.
 const ErrorPageURIPrefix = "/__gonix_error_page"
+
+// UpstreamFilePrefix is prepended to every upstream group's http-level file.
+const UpstreamFilePrefix = "gonix-upstream-"
+
+// UpstreamFileName returns the file name (without directory) of the upstream
+// group called name, e.g. "gonix-upstream-app.conf".
+func UpstreamFileName(name string) string {
+	return UpstreamFilePrefix + name + ".conf"
+}

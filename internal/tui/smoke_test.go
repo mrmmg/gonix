@@ -19,6 +19,7 @@ import (
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/snippet"
 	"github.com/mrmmg/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/upstreams"
 )
 
 // testDeps builds a fully wired Deps against temporary directories, so the
@@ -86,6 +87,7 @@ func testDeps(t *testing.T) Deps {
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
 			Manager: manager, Writer: writer,
 		},
+		Upstreams:   &upstreams.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Manager: manager, Writer: writer},
 		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: svc, Writer: writer},
 		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
 		SystemSvc:   systemSvc,

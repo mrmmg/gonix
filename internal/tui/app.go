@@ -18,6 +18,7 @@ import (
 	"github.com/mrmmg/gonix/internal/ratelimit"
 	"github.com/mrmmg/gonix/internal/realip"
 	"github.com/mrmmg/gonix/internal/system"
+	"github.com/mrmmg/gonix/internal/upstreams"
 )
 
 // Version is the GoNix release version, shown in the title bar. It
@@ -37,6 +38,7 @@ type Deps struct {
 	RealIP      *realip.Service
 	Presets     *presets.Service
 	Maintenance *maintenance.Service
+	Upstreams   *upstreams.Service
 	RateLimits  *ratelimit.Service
 	SystemSvc   *system.Service
 	Audit       *audit.Logger

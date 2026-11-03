@@ -24,6 +24,7 @@ const (
 	miIPLists
 	miRealIP
 	miRateLimits
+	miUpstreams
 	miErrorPages
 	miConfigCheck
 	miSettings
@@ -43,6 +44,7 @@ func newMainMenu(deps Deps) *mainMenu {
 			{title: "IP Access Lists", desc: "allow or deny clients by IP address"},
 			{title: "Real Client IP", desc: "Cloudflare / load balancer client addresses"},
 			{title: "Rate Limits", desc: "limit requests and connections per client"},
+			{title: "Upstream Groups", desc: "load balancing across several backends"},
 			{title: "Error Pages", desc: "custom error page snippets for hosts"},
 			{title: "Config Check", desc: "conflicts, missing files, expiring certificates, dead upstreams"},
 			{title: "Settings", desc: "GoNix configuration"},
@@ -78,6 +80,8 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newRealIPScreen(s.deps))
 			case miRateLimits:
 				return s, navPush(newRateLimitsScreen(s.deps))
+			case miUpstreams:
+				return s, navPush(newUpstreamsScreen(s.deps))
 			case miErrorPages:
 				return s, navPush(newErrorPagesScreen(s.deps))
 			case miConfigCheck:

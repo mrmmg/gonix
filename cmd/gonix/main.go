@@ -26,6 +26,7 @@ import (
 	"github.com/mrmmg/gonix/internal/snippet"
 	"github.com/mrmmg/gonix/internal/system"
 	"github.com/mrmmg/gonix/internal/tui"
+	"github.com/mrmmg/gonix/internal/upstreams"
 )
 
 func main() {
@@ -157,6 +158,7 @@ func run() error {
 			SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir,
 			Manager: manager, Writer: snippetWriter,
 		},
+		Upstreams:   &upstreams.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Manager: manager, Writer: snippetWriter},
 		Maintenance: &maintenance.Service{HTTPDir: cfg.Nginx.HTTPSnippetsDir, Hosts: hostService, Writer: snippetWriter},
 		Presets:     &presets.Service{SnippetsDir: cfg.ErrorPages.SnippetsDirectory, HTTPDir: cfg.Nginx.HTTPSnippetsDir, Writer: snippetWriter},
 		SystemSvc:   systemSvc,

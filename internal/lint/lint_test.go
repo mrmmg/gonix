@@ -235,3 +235,23 @@ func writeCert(t *testing.T, dir string, names []string, validFor time.Duration)
 	os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600)
 	return cert, keyPath
 }
+
+func TestUpstreamGroups(t *testing.T) {
+	e := newEnv(t)
+	e.c.CheckUpstreams = true
+	l, _ := net.Listen("tcp", "127.0.0.1:0")
+	dead := l.Addr().String()
+	l.Close()
+	group := "upstream gonix_app {\n    server " + dead + " max_fails=1;\n}\n"
+	os.WriteFile(filepath.Join(e.c.HTTPDir, nginx.UpstreamFileName("app")), []byte(group), 0o644)
+	os.WriteFile(filepath.Join(e.c.HTTPDir, nginx.UpstreamFileName("spare")), []byte(group), 0o644)
+
+	h := proxyHost("example.com")
+	h.Locations[0].Proxy.UpstreamGroup = "app"
+	h.Locations = append(h.Locations, nginx.Location{Path: "/b/", Proxy: &nginx.ProxyConfig{UpstreamScheme: "http", UpstreamGroup: "gone", HTTPVersion: "1.1"}})
+	e.addHost(t, h, true)
+	f := run(t, e)
+	if !has(f, Error, "upstream group") || !has(f, Info, "upstream group is not used") || !has(f, Warning, dead+" is not accepting") {
+		t.Errorf("findings = %+v", f)
+	}
+}

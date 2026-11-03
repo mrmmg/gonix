@@ -326,11 +326,14 @@ func newAddPathWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 	fields := []wizardField{
 		{Key: "path", Label: "Location path (e.g. /api/):", Kind: fieldText, Placeholder: "/api/",
 			Validate: func(v string) error { return validateLocationPath(v) }},
-		{Key: "upstream_host", Label: "Upstream host/IP:", Kind: fieldText, Placeholder: "127.0.0.1", Validate: requireNonEmpty("upstream host")},
-		{Key: "upstream_port", Label: "Upstream port:", Kind: fieldText, Placeholder: "8080", Validate: validatePort},
+	}
+	fields = append(fields, upstreamTargetField(deps, "", nil)...)
+	fields = append(fields, []wizardField{
+		{Key: "upstream_host", Label: "Upstream host/IP:", Kind: fieldText, Placeholder: "127.0.0.1", Validate: requireNonEmpty("upstream host"), ShowIf: isSingleUpstream},
+		{Key: "upstream_port", Label: "Upstream port:", Kind: fieldText, Placeholder: "8080", Validate: validatePort, ShowIf: isSingleUpstream},
 		{Key: "upstream_scheme", Label: "Upstream protocol:", Kind: fieldChoice, Options: []string{"http", "https"}},
 		{Key: "websocket", Label: "Enable WebSocket Support?", Kind: fieldBool},
-	}
+	}...)
 	return newWizard("Add New Path — "+h.ServerName, fields, func(v map[string]string) (screen, tea.Cmd) {
 		host, err := deps.Manager.GetHost(h.FileName)
 		if err != nil {
@@ -341,7 +344,8 @@ func newAddPathWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 			Path: v["path"],
 			Proxy: &nginx.ProxyConfig{
 				UpstreamScheme: v["upstream_scheme"], UpstreamHost: v["upstream_host"], UpstreamPort: port,
-				HTTPVersion: "1.1", WebSocket: v["websocket"] == "yes",
+				UpstreamGroup: upstreamGroupChoice(v),
+				HTTPVersion:   "1.1", WebSocket: v["websocket"] == "yes",
 				ForwardHost: true, ForwardFor: true, ForwardProto: true, BufferingEnabled: true,
 			},
 		})
@@ -441,15 +445,34 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 // --- Proxy Configuration (edits the "/" location) ---
 
 func newProxyWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
-	fields := []wizardField{
-		{Key: "upstream_host", Label: "Upstream host/IP (for location /):", Kind: fieldText, Validate: requireNonEmpty("upstream host")},
-		{Key: "upstream_port", Label: "Upstream port:", Kind: fieldText, Validate: validatePort},
-		{Key: "upstream_scheme", Label: "Upstream protocol:", Kind: fieldChoice, Options: []string{"http", "https"}},
-		{Key: "connect_timeout", Label: "Connect timeout:", Kind: fieldText, Placeholder: "60s", Default: "60s"},
-		{Key: "read_timeout", Label: "Read timeout:", Kind: fieldText, Placeholder: "60s", Default: "60s"},
-		{Key: "send_timeout", Label: "Send timeout:", Kind: fieldText, Placeholder: "60s", Default: "60s"},
-		{Key: "max_body", Label: "Max request body size (e.g. 10m, empty = default):", Kind: fieldText, Placeholder: "10m"},
+	// Prefill from the current "/" location.
+	cur := nginx.ProxyConfig{UpstreamScheme: "http", ConnectTimeout: "60s", ReadTimeout: "60s", SendTimeout: "60s"}
+	for _, loc := range h.Locations {
+		if loc.Path == "/" && loc.Proxy != nil {
+			cur = *loc.Proxy
+		}
 	}
+	port := ""
+	if cur.UpstreamPort > 0 {
+		port = strconv.Itoa(cur.UpstreamPort)
+	}
+	orDefault := func(v, def string) string {
+		if v == "" {
+			return def
+		}
+		return v
+	}
+	fields := upstreamTargetField(deps, cur.UpstreamGroup, nil)
+	fields = append(fields, []wizardField{
+		{Key: "upstream_host", Label: "Upstream host/IP (for location /):", Kind: fieldText, Default: cur.UpstreamHost,
+			Validate: requireNonEmpty("upstream host"), ShowIf: isSingleUpstream},
+		{Key: "upstream_port", Label: "Upstream port:", Kind: fieldText, Default: port, Validate: validatePort, ShowIf: isSingleUpstream},
+		{Key: "upstream_scheme", Label: "Upstream protocol:", Kind: fieldChoice, Options: []string{"http", "https"}, ChoiceDefault: cur.UpstreamScheme},
+		{Key: "connect_timeout", Label: "Connect timeout:", Kind: fieldText, Placeholder: "60s", Default: orDefault(cur.ConnectTimeout, "60s")},
+		{Key: "read_timeout", Label: "Read timeout:", Kind: fieldText, Placeholder: "60s", Default: orDefault(cur.ReadTimeout, "60s")},
+		{Key: "send_timeout", Label: "Send timeout:", Kind: fieldText, Placeholder: "60s", Default: orDefault(cur.SendTimeout, "60s")},
+		{Key: "max_body", Label: "Max request body size (e.g. 10m, empty = default):", Kind: fieldText, Placeholder: "10m", Default: cur.MaxBodySize},
+	}...)
 	return newWizard("Proxy Configuration — "+h.ServerName, fields, func(v map[string]string) (screen, tea.Cmd) {
 		host, err := deps.Manager.GetHost(h.FileName)
 		if err != nil {
@@ -462,6 +485,7 @@ func newProxyWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 				host.Locations[i].Proxy.UpstreamHost = v["upstream_host"]
 				host.Locations[i].Proxy.UpstreamPort = port
 				host.Locations[i].Proxy.UpstreamScheme = v["upstream_scheme"]
+				host.Locations[i].Proxy.UpstreamGroup = upstreamGroupChoice(v)
 				host.Locations[i].Proxy.ConnectTimeout = v["connect_timeout"]
 				host.Locations[i].Proxy.ReadTimeout = v["read_timeout"]
 				host.Locations[i].Proxy.SendTimeout = v["send_timeout"]
