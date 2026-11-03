@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mrmmg/gonix/internal/audit"
@@ -37,6 +38,7 @@ type Writer struct {
 type File struct {
 	Path    string
 	Content *string
+	Mode    os.FileMode // permissions of a newly created file; 0 means 0644
 }
 
 // Write replaces path with content, then validates and reloads.
@@ -81,7 +83,13 @@ func (w *Writer) Apply(ctx context.Context, action, target string, files ...File
 				err = nil
 			}
 		} else {
-			err = os.WriteFile(f.Path, []byte(*f.Content), 0o644)
+			mode := f.Mode
+			if mode == 0 {
+				mode = 0o644
+			}
+			if err = os.MkdirAll(filepath.Dir(f.Path), 0o755); err == nil {
+				err = os.WriteFile(f.Path, []byte(*f.Content), mode)
+			}
 		}
 		if err != nil {
 			restore()
