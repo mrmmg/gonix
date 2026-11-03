@@ -39,7 +39,7 @@ func TestUpstreamGroupWizardAndAddHost(t *testing.T) {
 	model = pressEnter(t, model) // Reverse Proxy
 	model = pressDown(t, model, 1)
 	model = pressEnter(t, model) // Group: app
-	for i := 0; i < 8; i++ { // scheme .. send timeout, SSL no
+	for i := 0; i < 8; i++ {     // scheme .. send timeout, SSL no
 		model = pressEnter(t, model)
 	}
 	requireOKResult(t, root)
