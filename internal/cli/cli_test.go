@@ -379,3 +379,38 @@ func TestSkillOnlyMentionsRealCommands(t *testing.T) {
 		t.Errorf("only %d command mentions checked; the parser is probably broken", checked)
 	}
 }
+
+func TestNPMImport(t *testing.T) {
+	h := newHarness(t)
+	data, le := "../npm/testdata/data", "../npm/testdata/letsencrypt"
+	out := h.ok("npm-import", "--data", data, "--letsencrypt", le, "--dry-run")
+	if !strings.Contains(out, "server_name app.example.com www.app.example.com;") || !strings.Contains(out, "copy ") {
+		t.Errorf("dry run:\n%s", out)
+	}
+	var list []hostJSON
+	json.Unmarshal([]byte(h.ok("host", "list", "--json")), &list)
+	if len(list) != 0 {
+		t.Fatal("dry run created hosts")
+	}
+
+	var res struct {
+		Imported []string `json:"imported"`
+		Skipped  []string `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(h.ok("npm-import", "--data", data, "--letsencrypt", le, "--json")), &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Imported) != 5 { // app, plain, old (redirect), 2 streams
+		t.Errorf("imported = %v, skipped = %v", res.Imported, res.Skipped)
+	}
+	var shown hostJSON
+	json.Unmarshal([]byte(h.ok("host", "show", "app.example.com", "--json")), &shown)
+	if !shown.Enabled || shown.SSL == nil || shown.IPList != "npm-2" || shown.AccessList != "npm-2" {
+		t.Errorf("imported app = %+v", shown)
+	}
+	// Importing again skips what already exists.
+	json.Unmarshal([]byte(h.ok("npm-import", "--data", data, "--letsencrypt", le, "--json")), &res)
+	if len(res.Imported) != 0 {
+		t.Errorf("second import = %v", res.Imported)
+	}
+}
