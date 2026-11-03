@@ -114,7 +114,10 @@ func TestRun(t *testing.T) {
 		},
 		EnsurePreset: func(context.Context, []string) error { return nil },
 		CreateHost:   func(_ context.Context, h nginx.Host) error { created = append(created, h); return nil },
-		SaveStream:   func(_ context.Context, p streams.Proxy) error { savedStreams = append(savedStreams, p.Name); return nil },
+		SaveStream: func(_ context.Context, p streams.Proxy) error {
+			savedStreams = append(savedStreams, p.Name)
+			return nil
+		},
 	}
 	res := r.Run(context.Background(), items)
 
