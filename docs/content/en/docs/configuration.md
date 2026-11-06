@@ -81,3 +81,4 @@ the `GONIX_CONFIG` environment variable. The shipped default is
 | `GONIX_CONFIG` | Configuration file to use |
 | `GONIX_INSTANCE` | Instance to manage (same as `--instance`) |
 | `GONIX_ACTOR` | Name recorded as the actor in the audit log |
+| `GONIX_LAB` | `1` adds the **Lab** item to the TUI's main menu (see [Lab]({{< relref "lab" >}})) |

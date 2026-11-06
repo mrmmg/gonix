@@ -1,0 +1,7 @@
+# Lab scenario "default": the catch-all server. GoNix refuses to adopt it:
+# "_" is not a domain name.
+server {
+    listen {{ .HTTPPort }} default_server;
+    server_name _;
+    return 444;
+}

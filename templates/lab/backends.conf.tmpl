@@ -1,0 +1,12 @@
+# GoNix lab: two tiny backends for test hosts to proxy to. This file is
+# outside sites-available, so GoNix never lists it as a host.
+server {
+    listen {{ .BackendA }};
+    default_type text/plain;
+    return 200 "backend A ({{ .BackendA }}) host=$host uri=$request_uri\n";
+}
+server {
+    listen {{ .BackendB }};
+    default_type text/plain;
+    return 200 "backend B ({{ .BackendB }}) host=$host uri=$request_uri\n";
+}

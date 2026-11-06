@@ -1,0 +1,10 @@
+# Lab scenario "wildcard": a wildcard name after the main one.
+server {
+    listen {{ .HTTPPort }};
+    server_name {{ .Domain }} *.{{ .Domain }};
+
+    location / {
+        proxy_pass http://{{ .BackendB }};
+        proxy_set_header Host $host;
+    }
+}

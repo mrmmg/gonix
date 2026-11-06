@@ -1,0 +1,21 @@
+# GoNix lab Nginx, separate from the system's (see {{ .Dir }}/lab.json).
+{{- if .User }}
+user {{ .User }};
+{{- end }}
+worker_processes 1;
+pid {{ .Dir }}/run/nginx.pid;
+error_log {{ .Dir }}/logs/error.log;
+include {{ .Dir }}/modules/*.conf;
+
+events {
+    worker_connections 256;
+}
+
+http {
+    include {{ .Dir }}/mime.types;
+    default_type application/octet-stream;
+    access_log {{ .Dir }}/logs/access.log;
+
+    include {{ .Dir }}/conf.d/*.conf;
+    include {{ .Dir }}/sites-enabled/*;
+}

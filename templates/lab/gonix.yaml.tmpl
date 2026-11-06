@@ -1,0 +1,34 @@
+# GoNix lab instance. Created by the Lab menu; removed with "Remove Lab".
+instance: {{ .Instance }}
+nginx:
+  config_dir: {{ .Dir }}
+  sites_available: {{ .Dir }}/sites-available
+  sites_enabled: {{ .Dir }}/sites-enabled
+  binary_path: {{ .Nginx }}
+  config_file: {{ .Dir }}/nginx.conf
+  service: {{ .Unit }}
+  http_snippets_dir: {{ .Dir }}/conf.d
+  cache_dir: {{ .Dir }}/cache
+  streams_dir: {{ .Dir }}/streams
+  main_include_dir: {{ .Dir }}/modules
+  http_port: {{ .HTTPPort }}
+  https_port: {{ .HTTPSPort }}
+certificates:
+  directory: {{ .Dir }}/certs
+logs:
+  nginx_directory: {{ .Dir }}/logs
+  audit_file: {{ .Dir }}/audit.log
+backup:
+  directory: {{ .Dir }}/backups
+  keep_count: 20
+access_lists:
+  directory: {{ .Dir }}/accesslists
+  group: "{{ .Group }}"
+error_pages:
+  snippets_directory: {{ .Dir }}/snippets
+  pages_directory: {{ .Dir }}/www/error_pages
+geoip:
+  database: /usr/share/GeoIP/GeoLite2-Country.mmdb
+history:
+  enabled: true
+  git_dir: {{ .Dir }}/history.git

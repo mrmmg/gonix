@@ -66,6 +66,8 @@ What GoNix reads from the file:
 
 The report lists everything that is **kept as written**, so you can see what GoNix will never touch.
 
+To try all of this on typical hand-written and certbot setups first, use the [Lab]({{< relref "lab" >}}).
+
 **What can be adopted:** a file with one `server` block, optionally plus the plain-HTTP block that redirects
 it to HTTPS (the layout `certbot --nginx` writes). The first name in `server_name` must be a plain domain;
 wildcards and other names after it are fine. Anything else is skipped with the reason, and stays
