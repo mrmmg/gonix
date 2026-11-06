@@ -668,12 +668,17 @@ func errorPagesList(e *env, args []string) error {
 }
 
 func certList(e *env, args []string) error {
-	if _, err := parseFlags(flag.NewFlagSet("cert list", flag.ContinueOnError), args); err != nil {
+	fs := flag.NewFlagSet("cert list", flag.ContinueOnError)
+	le := fs.String("letsencrypt", certificates.DefaultLetsEncryptDir, "certbot's directory, whose certificates are listed too (none to skip)")
+	if _, err := parseFlags(fs, args); err != nil {
 		return err
 	}
 	certs, err := certificates.Scan(e.svc.Config.Certificates.Directory)
 	if err != nil {
 		return err
+	}
+	if dir := noneOr(*le); dir != "" {
+		certs = append(certs, certificates.ScanCertbot(dir)...)
 	}
 	type certJSON struct {
 		Name      string    `json:"name"`
@@ -685,16 +690,18 @@ func certList(e *env, args []string) error {
 		KeyType   string    `json:"key_type"`
 		KeyOK     bool      `json:"key_matches"`
 		Error     string    `json:"error,omitempty"`
+		Source    string    `json:"source"`
+		Path      string    `json:"path"`
 	}
 	out := []certJSON{}
 	for _, c := range certs {
-		out = append(out, certJSON{c.Domain, string(c.Status), c.NotAfter, c.RemainingHuman(), c.SANs, c.Issuer, string(c.KeyType), c.KeyMatches, c.ParseError})
+		out = append(out, certJSON{c.Domain, string(c.Status), c.NotAfter, c.RemainingHuman(), c.SANs, c.Issuer, string(c.KeyType), c.KeyMatches, c.ParseError, c.Source, c.CertPath})
 	}
 	return e.show(out, func(w io.Writer) {
 		var rows [][]string
 		for _, c := range out {
-			rows = append(rows, []string{c.Name, c.Status, c.NotAfter.Format("2006-01-02"), strings.Join(c.Names, " ")})
+			rows = append(rows, []string{c.Name, c.Source, c.Status, c.NotAfter.Format("2006-01-02"), strings.Join(c.Names, " ")})
 		}
-		table(w, "NAME\tSTATUS\tEXPIRES\tNAMES", rows)
+		table(w, "NAME\tSOURCE\tSTATUS\tEXPIRES\tNAMES", rows)
 	})
 }

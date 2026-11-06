@@ -16,6 +16,7 @@ weight: 5
 - **Redirect hosts and domain aliases.** Redirect a whole domain (`example.net` to `https://example.com`) with 301, 302, 307 or 308, keeping or dropping the path, and serve several names (`www.example.com`) from one host.
 - **HTTP/2 and HTTP/3.** The right `http2` syntax for your Nginx version; HTTP/3 (QUIC) is offered only when your build supports it.
 - **Coexists with hand-written configuration.** Hosts GoNix did not create are shown read-only with an `[unmanaged]` marker instead of being rewritten. See [How it works]({{< relref "how-it-works" >}}).
+- **Adopts hand-written hosts and certbot setups.** `gonix adopt` manages an existing file without rewriting it: only the directives a change involves are edited, everything else stays as written, and certbot keeps renewing its certificates. See [Migration]({{< relref "migration#adopting-hand-written-hosts-and-certbot" >}}).
 
 ## Certificates
 

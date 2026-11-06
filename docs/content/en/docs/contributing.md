@@ -120,11 +120,13 @@ gonix/
 ├── internal/
 │   ├── tui/               Bubble Tea screens, navigation and styling; never touches files directly
 │   ├── nginx/             domain model (Host/Location/...), template renderer, filesystem
-│   │                      operations (sites-available/enabled), `nginx -t` validator, and a
-│   │                      best-effort parser for managed and hand-written configs
+│   │                      operations (sites-available/enabled), `nginx -t` validator, a
+│   │                      parser for managed configs, and adopted (hand-written) hosts,
+│   │                      edited in place and verified by reading back
+│   │   └── ast/           lossless Nginx syntax tree: Print(Parse(x)) == x, byte for byte
 │   ├── hosts/             the safe workflow: validate → backup → write → test →
 │   │                      reload-or-rollback → audit
-│   ├── certificates/      TLS certificate discovery and inspection (crypto/x509)
+│   ├── certificates/      TLS certificate discovery and inspection (crypto/x509), certbot lineages
 │   ├── acme/              wildcard certificates: certbot + Cloudflare API DNS-01
 │   ├── accesslist/        HTTP Basic Auth "access lists" backed by htpasswd (bcrypt) files
 │   ├── errorpages/        named error page snippets (error_page → <code>.html) included by hosts

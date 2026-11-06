@@ -83,6 +83,9 @@ func (r *Renderer) Render(h Host) (string, error) {
 	if err := h.Validate(); err != nil {
 		return "", fmt.Errorf("invalid host: %w", err)
 	}
+	if h.Adopted != nil {
+		return r.renderAdopted(h)
+	}
 
 	// Resolve access-list names to htpasswd file paths for rendering,
 	// without mutating the caller's host.

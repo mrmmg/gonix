@@ -128,10 +128,11 @@ gonix/
 │   ├── tui/               صفحه‌ها، ناوبری و ظاهر (Bubble Tea)؛ هرگز مستقیم به فایل‌ها دست نمی‌زند
 │   ├── nginx/             مدل دامنه (Host/Location/...)، ساخت فایل از template، کار با
 │   │                      فایل‌سیستم (sites-available/enabled)، اعتبارسنج `nginx -t` و یک
-│   │                      parser حدودی برای پیکربندی‌های managed و دست‌نویس
+│   │                      parser پیکربندی‌های managed، و هاست‌های adopt‌شده (دست‌نویس) که درجا ویرایش و با بازخوانی بررسی می‌شوند؛
+│   │   └── ast/           درخت نحوی بی‌اتلاف Nginx: Print(Parse(x)) == x، بایت‌به‌بایت
 │   ├── hosts/             workflow امن: بررسی ورودی → پشتیبان → نوشتن → تست →
 │   │                      reload یا برگرداندن → audit
-│   ├── certificates/      پیدا کردن و بررسی گواهی TLS (crypto/x509)
+│   ├── certificates/      پیدا کردن و بررسی گواهی TLS (crypto/x509) و گواهی‌های certbot
 │   ├── acme/              گواهی Wildcard: certbot + چالش DNS-01 با API کلودفلر
 │   ├── accesslist/        لیست‌های رمز (HTTP Basic Auth) بر پایه‌ی فایل htpasswd (bcrypt)
 │   ├── errorpages/        snippetهای نام‌دار صفحه‌ی خطا (error_page → <code>.html) برای include در هاست‌ها

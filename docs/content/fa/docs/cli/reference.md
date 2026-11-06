@@ -76,7 +76,7 @@ weight: 1
 | `logs <domain> [--lines N] [--filter "status:5xx ip:... path:..."] [--summary] [--error]` | درخواست‌ها یا خطاهای اخیر |
 | `audit [--lines N]` | آخرین تغییرهای ثبت‌شده در audit log |
 | `check [--no-upstreams]` | Config Check |
-| `cert list` | گواهی‌ها و انقضایشان |
+| `cert list [--letsencrypt DIR\|none]` | گواهی‌ها و انقضایشان، به‌همراه گواهی‌های certbot |
 | `nginx status\|test\|reload` | کنترل سرویس |
 
 ## تاریخچه و جابه‌جایی
@@ -88,6 +88,8 @@ weight: 1
 | `export <file.tar.gz \| ->` | خروجی از همه‌چیزی که گونیکس مدیریت می‌کند |
 | ✎ `import <file.tar.gz> [--overwrite --yes]` | ورود یک خروجی |
 | ✎ `npm-import --data DIR [--letsencrypt DIR] [--disabled]` | ورود از Nginx Proxy Manager |
+| ✎ `adopt (<domain\|file>... \| --all) [--verify-renewal]` | مدیریت فایل‌های هاست دست‌نویس (فقط یک کامنت علامت اضافه می‌شود) |
+| ✎ `adopt release <domain>` | کنار گذاشتن مدیریت یک فایل adopt‌شده (محتوایش حفظ می‌شود) |
 
 ## ابزارها
 
