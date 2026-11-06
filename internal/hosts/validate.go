@@ -7,6 +7,7 @@ package hosts
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -59,11 +60,18 @@ func ValidatePath(path string) error {
 // names (e.g. "www.example.com, example.org"), validating each one and
 // dropping duplicates and the primary domain itself.
 func ParseAliases(input, primary string) ([]string, error) {
+	return ParseAliasesKeeping(input, primary, nil)
+}
+
+// ParseAliasesKeeping is ParseAliases for a host that already has names:
+// those in existing are accepted as they are, even when GoNix would not
+// create them (e.g. a wildcard in an adopted, hand-written file).
+func ParseAliasesKeeping(input, primary string, existing []string) ([]string, error) {
 	fields := strings.FieldsFunc(input, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' })
 	seen := map[string]bool{strings.ToLower(primary): true}
 	var aliases []string
 	for _, f := range fields {
-		if err := ValidateDomain(f); err != nil {
+		if err := ValidateDomain(f); err != nil && !slices.Contains(existing, f) {
 			return nil, err
 		}
 		key := strings.ToLower(f)

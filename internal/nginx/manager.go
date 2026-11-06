@@ -30,6 +30,10 @@ type ListedHost struct {
 	Host
 	FileName      string
 	BrokenSymlink bool
+	// AdoptError says why an adopted file can no longer be read as a host
+	// (e.g. it was edited into two server blocks); the host is then listed
+	// as unmanaged until the file is fixed.
+	AdoptError string
 }
 
 // ListHosts scans SitesAvailable and returns every discovered host, whether
@@ -63,23 +67,38 @@ func (m *Manager) ListHosts() ([]ListedHost, error) {
 		content := string(data)
 
 		var h Host
-		if strings.Contains(content, ManagedMarker) {
-			h, _ = ParseManagedHost(content)
-		} else {
-			s := ParseSummary(content)
-			h = Host{ServerName: name, Managed: false, SSL: SSLConfig{Enabled: s.SSL}}
-			if len(s.ServerNames) > 0 {
-				h.ServerName = s.ServerNames[0]
-				h.ServerAlias = s.ServerNames[1:]
+		var adoptErr string
+		switch {
+		case IsAdopted(content):
+			var err error
+			if h, err = m.Renderer.ParseAdoptedHost(name, content); err == nil {
+				break
 			}
+			adoptErr = err.Error()
+			h = unmanagedHost(name, content)
+		case strings.Contains(content, ManagedMarker):
+			h, _ = ParseManagedHost(content)
+		default:
+			h = unmanagedHost(name, content)
 		}
 		h.Enabled = enabled[name]
 
-		hosts = append(hosts, ListedHost{Host: h, FileName: name, BrokenSymlink: broken[name]})
+		hosts = append(hosts, ListedHost{Host: h, FileName: name, BrokenSymlink: broken[name], AdoptError: adoptErr})
 	}
 
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i].FileName < hosts[j].FileName })
 	return hosts, nil
+}
+
+// unmanagedHost is the read-only summary of a file GoNix does not manage.
+func unmanagedHost(fileName, content string) Host {
+	s := ParseSummary(content)
+	h := Host{ServerName: fileName, Managed: false, SSL: SSLConfig{Enabled: s.SSL}}
+	if len(s.ServerNames) > 0 {
+		h.ServerName = s.ServerNames[0]
+		h.ServerAlias = s.ServerNames[1:]
+	}
+	return h
 }
 
 // enabledLinks reports, per file name in SitesEnabled, whether it is a
@@ -119,8 +138,15 @@ func (m *Manager) GetHost(fileName string) (Host, error) {
 		return Host{}, fmt.Errorf("reading host %s: %w", fileName, err)
 	}
 	content := string(data)
+	if IsAdopted(content) {
+		h, err := m.Renderer.ParseAdoptedHost(fileName, content)
+		if err != nil {
+			return Host{}, fmt.Errorf("adopted host %s cannot be edited: %w", fileName, err)
+		}
+		return h, nil
+	}
 	if !strings.Contains(content, ManagedMarker) {
-		return Host{}, fmt.Errorf("host %s is not managed by GoNix and cannot be parsed for editing", fileName)
+		return Host{}, fmt.Errorf("host %s is not managed by GoNix and cannot be parsed for editing (adopt it first)", fileName)
 	}
 	return ParseManagedHost(content)
 }
@@ -135,15 +161,33 @@ func (m *Manager) RawConfig(fileName string) (string, error) {
 	return string(data), nil
 }
 
-// WriteHost renders h and writes it to sites-available/<ServerName>. It does
-// not enable the host or validate the resulting configuration; callers
-// should use a higher level workflow (see internal/hosts) for that.
+// WriteHost renders h and writes it to sites-available/<h.ConfigFile()>. It
+// does not enable the host or validate the resulting configuration;
+// callers should use a higher level workflow (see internal/hosts) for that.
+//
+// An adopted host is refused when its file changed since it was read, so
+// an edit made by hand in the meantime is never overwritten.
 func (m *Manager) WriteHost(h Host) error {
 	content, err := m.Renderer.Render(h)
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(m.SitesAvailable, h.ServerName)
+	path := filepath.Join(m.SitesAvailable, h.ConfigFile())
+	if h.Adopted != nil {
+		cur, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+		if string(cur) != h.Adopted.Source {
+			return fmt.Errorf("%s changed since it was read; nothing was written, try again", path)
+		}
+	}
+	return m.WriteFile(h.ConfigFile(), content)
+}
+
+// WriteFile writes content to sites-available/fileName.
+func (m *Manager) WriteFile(fileName, content string) error {
+	path := filepath.Join(m.SitesAvailable, fileName)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("writing host config %s: %w", path, err)
 	}

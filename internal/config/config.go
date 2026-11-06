@@ -70,6 +70,9 @@ type NginxConfig struct {
 	// level, where GoNix may place the stream { } block that includes
 	// StreamsDir (Debian/Ubuntu: /etc/nginx/modules-enabled).
 	MainIncludeDir string `yaml:"main_include_dir"`
+	// HTTPPort and HTTPSPort are the ports new hosts listen on.
+	HTTPPort  int `yaml:"http_port"`
+	HTTPSPort int `yaml:"https_port"`
 }
 
 type CertificatesConfig struct {
@@ -116,6 +119,8 @@ func Default() *Config {
 			CacheDir:        "/var/cache/nginx/gonix",
 			StreamsDir:      "/etc/nginx/gonix-streams",
 			MainIncludeDir:  "/etc/nginx/modules-enabled",
+			HTTPPort:        80,
+			HTTPSPort:       443,
 		},
 		Certificates: CertificatesConfig{
 			Directory: "/etc/nginx/certs",

@@ -128,10 +128,12 @@ gonix/
 │   ├── tui/               صفحه‌ها، ناوبری و ظاهر (Bubble Tea)؛ هرگز مستقیم به فایل‌ها دست نمی‌زند
 │   ├── nginx/             مدل دامنه (Host/Location/...)، ساخت فایل از template، کار با
 │   │                      فایل‌سیستم (sites-available/enabled)، اعتبارسنج `nginx -t` و یک
-│   │                      parser حدودی برای پیکربندی‌های managed و دست‌نویس
+│   │                      parser پیکربندی‌های managed، و هاست‌های adopt‌شده (دست‌نویس) که درجا ویرایش و با بازخوانی بررسی می‌شوند؛
+│   │   └── ast/           درخت نحوی بی‌اتلاف Nginx: Print(Parse(x)) == x، بایت‌به‌بایت
 │   ├── hosts/             workflow امن: بررسی ورودی → پشتیبان → نوشتن → تست →
 │   │                      reload یا برگرداندن → audit
-│   ├── certificates/      پیدا کردن و بررسی گواهی TLS (crypto/x509)
+│   ├── certificates/      پیدا کردن و بررسی گواهی TLS (crypto/x509) و گواهی‌های certbot
+│   ├── lab/               آزمایشگاه: یک Nginx جدا با هاست‌های دست‌نویس آزمایشی (GONIX_LAB=1)
 │   ├── acme/              گواهی Wildcard: certbot + چالش DNS-01 با API کلودفلر
 │   ├── accesslist/        لیست‌های رمز (HTTP Basic Auth) بر پایه‌ی فایل htpasswd (bcrypt)
 │   ├── errorpages/        snippetهای نام‌دار صفحه‌ی خطا (error_page → <code>.html) برای include در هاست‌ها
@@ -152,7 +154,8 @@ gonix/
 │   ├── cli/               دستورهای غیرتعاملی و سرور MCP
 │   └── nginxtest/         ابزار تست که یک nginx واقعی را روی پورت‌های آزاد اجرا می‌کند
 ├── skills/gonix/          skill عامل هوش مصنوعی (SKILL.md)، داخل فایل اجرایی جاسازی شده
-├── templates/             templateهای جاسازی‌شده‌ی Nginx (host.tmpl، location.tmpl، errorpages.tmpl)
+├── templates/             templateهای جاسازی‌شده‌ی Nginx (host.tmpl، location.tmpl، errorpages.tmpl)،
+│                          و lab/: nginx.conf، unit، راهنما و یک template برای هر نوع هاست آزمایشی
 ├── configs/
 │   ├── default.yaml       پیکربندی پیش‌فرض، که همراه نسخه‌ی منتشرشده هم می‌آید
 │   └── logrotate.conf     سیاست logrotate که `make install` و install.sh نصب می‌کنند

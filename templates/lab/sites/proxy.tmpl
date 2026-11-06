@@ -1,0 +1,13 @@
+# Lab scenario "proxy": a plain reverse proxy over HTTP, written by hand.
+server {
+    listen {{ .HTTPPort }};
+    server_name {{ .Domain }};
+
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://{{ .BackendA }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

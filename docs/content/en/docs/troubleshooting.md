@@ -40,9 +40,19 @@ certificate file.
 
 ## A host shows as `[unmanaged]`
 
-**Cause:** its file does not start with `# Managed by GoNix.`. GoNix will not rewrite files it did not create.
+**Cause:** its file does not start with `# Managed by GoNix.` or `# Adopted by GoNix.`. GoNix will not
+rewrite files it did not create.
 
-**Fix:** keep editing it by hand, or recreate it with GoNix.
+**Fix:** adopt it (`sudo gonix adopt <domain>`, see [Migration]({{< relref "migration#adopting-hand-written-hosts-and-certbot" >}})),
+or keep editing it by hand.
+
+## A host shows as `[adopted, unreadable]`
+
+**Cause:** the adopted file was edited by hand into something GoNix cannot read as one host (for example a
+second site, or a syntax error). GoNix leaves it alone; `gonix host show <domain> --json` has the reason in
+`adopt_error`.
+
+**Fix:** fix the file by hand, or `sudo gonix adopt release <domain>` to stop managing it.
 
 ## All my visitors have the same IP, or one rate-limit hit blocks everyone
 

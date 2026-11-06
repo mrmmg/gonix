@@ -1,0 +1,42 @@
+# Lab scenario "certbot-proxy": a reverse proxy written by hand, then edited
+# by `certbot --nginx` (HTTPS block + plain-HTTP redirect block).
+server {
+    server_name {{ .Domain }} www.{{ .Domain }};
+
+    add_header X-Lab "hand-written" always;
+
+    location / {
+        proxy_pass http://{{ .BackendA }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 120s;
+    }
+
+    # Old URLs still work.
+    location /legacy/ {
+        rewrite ^/legacy/(.*)$ /$1 break;
+        proxy_pass http://{{ .BackendB }};
+    }
+
+    listen {{ .HTTPSPort }} ssl; # managed by Certbot
+    ssl_certificate {{ .LiveDir }}/fullchain.pem; # managed by Certbot
+    ssl_certificate_key {{ .LiveDir }}/privkey.pem; # managed by Certbot
+    ssl_protocols TLSv1.2 TLSv1.3; # managed by Certbot
+}
+server {
+    if ($host = www.{{ .Domain }}) {
+        return 301 {{ .HTTPSBase }}$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = {{ .Domain }}) {
+        return 301 {{ .HTTPSBase }}$request_uri;
+    } # managed by Certbot
+
+
+    listen {{ .HTTPPort }};
+    server_name {{ .Domain }} www.{{ .Domain }};
+    return 404; # managed by Certbot
+}

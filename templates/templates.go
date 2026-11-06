@@ -7,3 +7,10 @@ import "embed"
 
 //go:embed *.tmpl
 var FS embed.FS
+
+// Lab holds the files of the GoNix lab (see internal/lab): its Nginx
+// configuration, systemd unit, guide, and one template per test host
+// scenario under lab/sites.
+//
+//go:embed lab
+var Lab embed.FS

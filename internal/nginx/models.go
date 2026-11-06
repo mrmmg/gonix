@@ -189,6 +189,38 @@ type Host struct {
 	// Enabled reflects whether a symlink exists in sites-enabled. This is
 	// computed at discovery time, not stored in the config file.
 	Enabled bool
+
+	// Adopted is set when the file was written by hand and later adopted
+	// (see adopted.go). Such a file is edited in place, directive by
+	// directive, instead of being re-rendered from the template.
+	Adopted *Adoption
+}
+
+// Adoption ties an adopted host to its file.
+type Adoption struct {
+	// FileName is the file in sites-available, which, unlike for hosts
+	// GoNix created, need not be named after the server name.
+	FileName string
+	// Source is the file's content when the host was read. Changes are
+	// applied to it, and writing fails if the file changed in between.
+	Source string
+}
+
+// HTTPSBase is where plain HTTP is redirected to: https://$host, plus the
+// port when HTTPS is not on the standard one.
+func (h Host) HTTPSBase() string {
+	if h.ListenSSL == 0 || h.ListenSSL == 443 {
+		return "https://$host"
+	}
+	return fmt.Sprintf("https://$host:%d", h.ListenSSL)
+}
+
+// ConfigFile returns the name of the host's file in sites-available.
+func (h Host) ConfigFile() string {
+	if h.Adopted != nil {
+		return h.Adopted.FileName
+	}
+	return h.ServerName
 }
 
 // Validate performs basic structural validation of the host model before it
@@ -197,6 +229,12 @@ type Host struct {
 func (h Host) Validate() error {
 	if h.ServerName == "" {
 		return fmt.Errorf("server name must not be empty")
+	}
+	if h.Adopted != nil {
+		// The structure of a hand-written file (mode, locations,
+		// certificates inherited from the http block, ...) is Nginx's to
+		// judge; only the names GoNix turns into file paths are checked.
+		return h.validateReferences()
 	}
 	if h.Mode == ModeReverseProxy && len(h.Locations) == 0 {
 		return fmt.Errorf("reverse proxy host %q must have at least one location", h.ServerName)
@@ -213,11 +251,27 @@ func (h Host) Validate() error {
 		}
 	}
 	for _, loc := range h.Locations {
-		if loc.Path == "" {
-			return fmt.Errorf("location in host %q has an empty path", h.ServerName)
-		}
 		if !loc.IsCustom && loc.Proxy == nil {
 			return fmt.Errorf("location %q in host %q is not custom but has no proxy configuration", loc.Path, h.ServerName)
+		}
+	}
+	if h.SSL.HTTP3 && !h.SSL.Enabled {
+		return fmt.Errorf("host %q enables HTTP/3 without SSL", h.ServerName)
+	}
+	if h.SSL.Enabled {
+		if h.SSL.CertFile == "" || h.SSL.KeyFile == "" {
+			return fmt.Errorf("host %q has SSL enabled but is missing certificate paths", h.ServerName)
+		}
+	}
+	return h.validateReferences()
+}
+
+// validateReferences checks the location paths and the names of the
+// snippets a host includes, which GoNix turns into file paths.
+func (h Host) validateReferences() error {
+	for _, loc := range h.Locations {
+		if loc.Path == "" {
+			return fmt.Errorf("location in host %q has an empty path", h.ServerName)
 		}
 		if loc.Proxy != nil && loc.Proxy.UpstreamGroup != "" && !ValidSnippetName(loc.Proxy.UpstreamGroup) {
 			return fmt.Errorf("location %q in host %q references an invalid upstream group %q", loc.Path, h.ServerName, loc.Proxy.UpstreamGroup)
@@ -245,16 +299,8 @@ func (h Host) Validate() error {
 			return fmt.Errorf("host %q references an invalid preset name %q", h.ServerName, p)
 		}
 	}
-	if h.SSL.HTTP3 && !h.SSL.Enabled {
-		return fmt.Errorf("host %q enables HTTP/3 without SSL", h.ServerName)
-	}
 	if h.ErrorPagesSnippet != "" && !ValidSnippetName(h.ErrorPagesSnippet) {
 		return fmt.Errorf("host %q references an invalid error pages snippet name %q", h.ServerName, h.ErrorPagesSnippet)
-	}
-	if h.SSL.Enabled {
-		if h.SSL.CertFile == "" || h.SSL.KeyFile == "" {
-			return fmt.Errorf("host %q has SSL enabled but is missing certificate paths", h.ServerName)
-		}
 	}
 	return nil
 }

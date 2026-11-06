@@ -6,12 +6,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mrmmg/gonix/internal/certificates"
+	"github.com/mrmmg/gonix/internal/lab"
 )
 
 // mainMenu is the application's entry screen.
 type mainMenu struct {
 	deps    Deps
 	menu    *simpleMenu
+	actions []int  // mi* action of each row, in display order
 	warning string // e.g. certificates about to expire
 }
 
@@ -31,32 +33,52 @@ const (
 	miConfigCheck
 	miHistory
 	miSettings
+	miLab
 	miExit
 )
 
 func newMainMenu(deps Deps) *mainMenu {
-	return &mainMenu{
-		deps:    deps,
-		warning: certificateWarning(deps),
-		menu: newSimpleMenu([]menuItem{
-			{title: "Add New Host", desc: "create a reverse proxy or static host"},
-			{title: "Manage Hosts", desc: "enable/disable, edit, delete existing hosts"},
-			{title: "Certificates", desc: "inspect TLS certificates"},
-			{title: "Nginx Status", desc: "service control & process monitoring"},
-			{title: "Access Lists", desc: "HTTP Basic Authentication"},
-			{title: "IP Access Lists", desc: "allow or deny clients by IP address"},
-			{title: "Real Client IP", desc: "Cloudflare / load balancer client addresses"},
-			{title: "Country Blocking", desc: "allow or refuse clients by country (GeoIP)"},
-			{title: "Rate Limits", desc: "limit requests and connections per client"},
-			{title: "Upstream Groups", desc: "load balancing across several backends"},
-			{title: "Stream Proxies", desc: "forward TCP/UDP ports (databases, SSH, DNS, ...)"},
-			{title: "Error Pages", desc: "custom error page snippets for hosts"},
-			{title: "Config Check", desc: "conflicts, missing files, expiring certificates, dead upstreams"},
-			{title: "Configuration History", desc: "every change as a Git commit; diff and restore"},
-			{title: "Settings", desc: "GoNix configuration"},
-			{title: "Exit", desc: ""},
-		}),
+	all := []menuItem{
+		{title: "Add New Host", desc: "create a reverse proxy or static host"},
+		{title: "Manage Hosts", desc: "enable/disable, edit, delete existing hosts"},
+		{title: "Certificates", desc: "inspect TLS certificates"},
+		{title: "Nginx Status", desc: "service control & process monitoring"},
+		{title: "Access Lists", desc: "HTTP Basic Authentication"},
+		{title: "IP Access Lists", desc: "allow or deny clients by IP address"},
+		{title: "Real Client IP", desc: "Cloudflare / load balancer client addresses"},
+		{title: "Country Blocking", desc: "allow or refuse clients by country (GeoIP)"},
+		{title: "Rate Limits", desc: "limit requests and connections per client"},
+		{title: "Upstream Groups", desc: "load balancing across several backends"},
+		{title: "Stream Proxies", desc: "forward TCP/UDP ports (databases, SSH, DNS, ...)"},
+		{title: "Error Pages", desc: "custom error page snippets for hosts"},
+		{title: "Config Check", desc: "conflicts, missing files, expiring certificates, dead upstreams"},
+		{title: "Configuration History", desc: "every change as a Git commit; diff and restore"},
+		{title: "Settings", desc: "GoNix configuration"},
+		{title: "Lab", desc: "a separate Nginx with hand-written test hosts, for trying GoNix"},
+		{title: "Exit", desc: ""},
 	}
+	m := &mainMenu{deps: deps, warning: certificateWarning(deps)}
+	var items []menuItem
+	for action, item := range all {
+		switch {
+		case action == miLab && (inLab || !lab.Enabled()):
+			continue
+		case action == miExit && inLab:
+			item = menuItem{title: "Exit Lab", desc: "back to the real server"}
+		}
+		items = append(items, item)
+		m.actions = append(m.actions, action)
+	}
+	m.menu = newSimpleMenu(items)
+	return m
+}
+
+// leave quits the TUI, or, inside the lab, goes back to the real server.
+func (s *mainMenu) leave() tea.Cmd {
+	if inLab {
+		return func() tea.Msg { return labExitMsg{} }
+	}
+	return tea.Quit
 }
 
 func (s *mainMenu) Init() tea.Cmd { return nil }
@@ -69,7 +91,11 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "enter":
-			switch s.menu.Selected() {
+			action := -1
+			if i := s.menu.Selected(); i < len(s.actions) {
+				action = s.actions[i]
+			}
+			switch action {
 			case miAddHost:
 				return s, navPush(newAddHostWizard(s.deps))
 			case miManageHosts:
@@ -100,11 +126,13 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newHistoryScreen(s.deps))
 			case miSettings:
 				return s, navPush(newSettingsScreen(s.deps))
+			case miLab:
+				return s, navPush(newLabScreen(s.deps))
 			case miExit:
-				return s, tea.Quit
+				return s, s.leave()
 			}
 		case "q", "esc":
-			return s, tea.Quit
+			return s, s.leave()
 		}
 	}
 	return s, nil
@@ -112,6 +140,9 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 
 func (s *mainMenu) View(width, height int) string {
 	body := headerStyle.Render("Main Menu") + "\n"
+	if inLab {
+		body += dangerStyle.Render("LAB: changes go to the lab's Nginx ("+s.deps.Config.Nginx.ConfigDir+"), not the real server") + "\n"
+	}
 	if s.warning != "" {
 		body += dangerStyle.Render("⚠ "+s.warning) + "\n"
 	}

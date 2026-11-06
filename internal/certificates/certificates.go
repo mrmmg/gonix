@@ -62,7 +62,14 @@ type Certificate struct {
 	Status      Status
 	ParseError  string // set when the PEM/certificate could not be parsed
 	KeyMatches  bool   // whether the private key matches the certificate
+	Source      string // SourceGoNix or SourceCertbot; set by Scan and ScanCertbot
 }
+
+// Where a certificate lives, and so who renews it.
+const (
+	SourceGoNix   = "gonix"   // the certificates directory
+	SourceCertbot = "certbot" // certbot's live directory, renewed by certbot
+)
 
 // RemainingHuman returns a human readable description of the time left
 // until expiration, e.g. "expires in approximately 20 days" or
@@ -122,7 +129,9 @@ func Scan(certDir string) ([]Certificate, error) {
 		if !fileExists(certPath) || !fileExists(keyPath) {
 			continue
 		}
-		certs = append(certs, Parse(e.Name(), dir, certPath, keyPath))
+		c := Parse(e.Name(), dir, certPath, keyPath)
+		c.Source = SourceGoNix
+		certs = append(certs, c)
 	}
 	sort.Slice(certs, func(i, j int) bool { return certs[i].Domain < certs[j].Domain })
 	return certs, nil

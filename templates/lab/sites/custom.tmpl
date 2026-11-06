@@ -1,0 +1,29 @@
+# Lab scenario "custom": locations GoNix keeps as custom configuration
+# (PHP, an internal named location, rewrites), next to a plain proxy.
+server {
+    listen {{ .HTTPPort }};
+    server_name {{ .Domain }};
+    root {{ .WWW }};
+
+    location / {
+        try_files $uri @backend;
+    }
+
+    location @backend {
+        proxy_pass http://{{ .BackendA }};
+        proxy_intercept_errors on;
+    }
+
+    location ~ \.php$ {
+        include {{ .Dir }}/fastcgi_params;
+        fastcgi_pass unix:/run/php-fpm/php-fpm.sock;
+    }
+
+    location /api/ {
+        proxy_pass http://{{ .BackendB }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

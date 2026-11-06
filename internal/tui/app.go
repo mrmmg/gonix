@@ -48,6 +48,9 @@ type rootModel struct {
 	stack  []screen
 	width  int
 	height int
+	// homeLabel is the instance label of the real server, restored when
+	// leaving the lab.
+	homeLabel string
 }
 
 // NewApp constructs the root Bubble Tea program model, starting at the main
@@ -56,7 +59,7 @@ func NewApp(deps Deps) tea.Model {
 	if deps.Config != nil {
 		instanceLabel = deps.Config.Instance
 	}
-	m := &rootModel{deps: deps}
+	m := &rootModel{deps: deps, homeLabel: instanceLabel}
 	m.stack = []screen{newMainMenu(deps)}
 	return m
 }
@@ -91,6 +94,18 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.stack) > 1 {
 			m.stack = m.stack[:len(m.stack)-1]
 		}
+		return m, sizeCmd(m.width, m.height)
+
+	case labEnterMsg:
+		// The lab gets a navigation stack of its own; leaving it rebuilds
+		// the real server's screens from m.deps.
+		inLab, instanceLabel = true, msg.deps.Config.Instance
+		m.stack = []screen{newMainMenu(msg.deps)}
+		return m, sizeCmd(m.width, m.height)
+
+	case labExitMsg:
+		inLab, instanceLabel = false, m.homeLabel
+		m.stack = []screen{newMainMenu(m.deps), newLabScreen(m.deps)}
 		return m, sizeCmd(m.width, m.height)
 
 	case navReplaceMsg:

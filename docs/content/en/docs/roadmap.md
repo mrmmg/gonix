@@ -9,8 +9,8 @@ weight: 200
 - **More DNS providers for wildcard certificates.** Only Cloudflare is supported today.
 - **WAF / ModSecurity integration.**
 - **Active health checks.** Open-source Nginx has only passive ones.
-- **Importing arbitrary hand-written Nginx configuration** into managed hosts. Today those hosts stay
-  read-only `[unmanaged]`.
+- **Splitting multi-site files on adoption.** A hand-written file with several sites must be split by hand
+  before it can be [adopted]({{< relref "migration#adopting-hand-written-hosts-and-certbot" >}}).
 
 ## Left out on purpose
 

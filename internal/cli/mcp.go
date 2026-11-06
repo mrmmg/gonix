@@ -327,6 +327,8 @@ var mcpTools = []mcpTool{
 		params: []mcpParam{{name: "name", kind: "string", description: "List name", required: true}, {name: "entry", kind: "string", description: "IP or CIDR", required: true}}},
 	{name: "list_rate_limits", description: "List rate limits.", command: "ratelimit list"},
 	{name: "list_upstream_groups", description: "List upstream (load balancing) groups.", command: "upstream list"},
+	{name: "adopt_host", description: "Let GoNix manage a hand-written host file. Only a marker comment is added; Nginx keeps serving the same configuration, certificates (e.g. certbot's) stay in place, and later edits change only the directives involved.",
+		command: "adopt", write: true, params: []mcpParam{{name: "domain", kind: "string", description: "Domain or file name", required: true}}},
 	{name: "list_certificates", description: "List TLS certificates with expiry and names.", command: "cert list"},
 	{name: "check_config", description: "Find problems nginx -t does not: duplicate names, missing files, expiring certificates, dead upstreams.", command: "check"},
 	{name: "host_logs", description: "Recent requests of a host, a traffic summary, or its error log.", command: "logs",

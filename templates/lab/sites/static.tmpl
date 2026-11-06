@@ -1,0 +1,14 @@
+# Lab scenario "static": static files with directives GoNix has no setting
+# for (index, try_files), indented with tabs.
+server {
+	listen {{ .HTTPPort }};
+	server_name {{ .Domain }};
+	root {{ .WWW }};
+	index index.html;
+	try_files $uri $uri/ =404;
+
+	location /assets/ {
+		expires 7d;
+		add_header Cache-Control "public";
+	}
+}

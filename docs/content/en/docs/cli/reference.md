@@ -76,7 +76,7 @@ Common `host add` / `host set` flags:
 | `logs <domain> [--lines N] [--filter "status:5xx ip:... path:..."] [--summary] [--error]` | Recent requests or errors |
 | `audit [--lines N]` | Latest audited changes |
 | `check [--no-upstreams]` | Config Check |
-| `cert list` | Certificates and their expiry |
+| `cert list [--letsencrypt DIR\|none]` | Certificates and their expiry, certbot's included |
 | `nginx status\|test\|reload` | Service control |
 
 ## History and moving
@@ -88,6 +88,8 @@ Common `host add` / `host set` flags:
 | `export <file.tar.gz \| ->` | Export everything GoNix manages |
 | ✎ `import <file.tar.gz> [--overwrite --yes]` | Import an export |
 | ✎ `npm-import --data DIR [--letsencrypt DIR] [--disabled]` | Import from Nginx Proxy Manager |
+| ✎ `adopt (<domain\|file>... \| --all) [--verify-renewal]` | Manage hand-written host files (only a marker comment is added) |
+| ✎ `adopt release <domain>` | Stop managing an adopted host file (its content is kept) |
 
 ## Tooling
 

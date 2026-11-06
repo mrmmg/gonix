@@ -39,11 +39,17 @@ On every scan, files with that marker are **managed**: GoNix can edit them. File
 you wrote yourself, are listed as **`[unmanaged]`** and shown read-only. You can still view their raw
 configuration, but GoNix will not rewrite something it did not create.
 
+A hand-written file can be **adopted** (`gonix adopt`, or "Adopt Host" in the TUI). That adds a different
+marker, `# Adopted by GoNix.`, and nothing else. An adopted file is never re-rendered: GoNix edits only the
+directives a change involves, reads the result back to verify it, and leaves the rest of the file as you
+wrote it. See [Migration]({{< relref "migration#adopting-hand-written-hosts-and-certbot" >}}).
+
 {{< callout type="warning" >}}
 A managed file is read back into GoNix's model and re-rendered from its template whenever you change
 that host through GoNix. A directive GoNix has no setting for may therefore not survive such a change.
 For custom directives, use a **custom location block** (see [Hosts]({{< relref "hosts" >}})), or take
-the file out of GoNix's hands by removing the marker line, which makes it `[unmanaged]`.
+the file out of GoNix's hands by removing the marker line, which makes it `[unmanaged]`. Adopted files do
+not have this limit.
 {{< /callout >}}
 
 ## Idea 3: every change takes the same safe path

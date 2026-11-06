@@ -1,0 +1,15 @@
+# Imitation of certbot's renewal file, so GoNix treats the certificate as
+# certbot's. The certificate itself is self-signed.
+version = 2.11.0
+archive_dir = {{ .Dir }}/letsencrypt/archive/{{ .Domain }}
+cert = {{ .Dir }}/letsencrypt/live/{{ .Domain }}/cert.pem
+privkey = {{ .Dir }}/letsencrypt/live/{{ .Domain }}/privkey.pem
+chain = {{ .Dir }}/letsencrypt/live/{{ .Domain }}/chain.pem
+fullchain = {{ .Dir }}/letsencrypt/live/{{ .Domain }}/fullchain.pem
+
+[renewalparams]
+account = 00000000000000000000000000000000
+authenticator = nginx
+installer = nginx
+server = https://acme-v02.api.letsencrypt.org/directory
+key_type = ecdsa

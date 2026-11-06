@@ -1,0 +1,15 @@
+# GoNix lab Nginx ({{ .Dir }}). Created by the Lab menu; removed with "Remove Lab".
+[Unit]
+Description=Nginx for the GoNix lab ({{ .Dir }})
+After=network.target
+
+[Service]
+Type=forking
+PIDFile={{ .Dir }}/run/nginx.pid
+ExecStartPre={{ .Nginx }} -t -q -c {{ .Dir }}/nginx.conf
+ExecStart={{ .Nginx }} -c {{ .Dir }}/nginx.conf
+ExecReload={{ .Nginx }} -s reload -c {{ .Dir }}/nginx.conf
+ExecStop={{ .Nginx }} -s quit -c {{ .Dir }}/nginx.conf
+
+[Install]
+WantedBy=multi-user.target

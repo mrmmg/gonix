@@ -120,11 +120,14 @@ gonix/
 ├── internal/
 │   ├── tui/               Bubble Tea screens, navigation and styling; never touches files directly
 │   ├── nginx/             domain model (Host/Location/...), template renderer, filesystem
-│   │                      operations (sites-available/enabled), `nginx -t` validator, and a
-│   │                      best-effort parser for managed and hand-written configs
+│   │                      operations (sites-available/enabled), `nginx -t` validator, a
+│   │                      parser for managed configs, and adopted (hand-written) hosts,
+│   │                      edited in place and verified by reading back
+│   │   └── ast/           lossless Nginx syntax tree: Print(Parse(x)) == x, byte for byte
 │   ├── hosts/             the safe workflow: validate → backup → write → test →
 │   │                      reload-or-rollback → audit
-│   ├── certificates/      TLS certificate discovery and inspection (crypto/x509)
+│   ├── certificates/      TLS certificate discovery and inspection (crypto/x509), certbot lineages
+│   ├── lab/               the Lab: a separate Nginx with hand-written test hosts (GONIX_LAB=1)
 │   ├── acme/              wildcard certificates: certbot + Cloudflare API DNS-01
 │   ├── accesslist/        HTTP Basic Auth "access lists" backed by htpasswd (bcrypt) files
 │   ├── errorpages/        named error page snippets (error_page → <code>.html) included by hosts
@@ -145,7 +148,8 @@ gonix/
 │   ├── cli/               non-interactive commands and the MCP server
 │   └── nginxtest/         test helper that runs a real nginx on free ports
 ├── skills/gonix/          the AI agent skill (SKILL.md), embedded in the binary
-├── templates/             embedded Nginx templates (host.tmpl, location.tmpl, errorpages.tmpl)
+├── templates/             embedded Nginx templates (host.tmpl, location.tmpl, errorpages.tmpl),
+│                          and lab/: the Lab's nginx.conf, unit, guide and one template per test host kind
 ├── configs/
 │   ├── default.yaml       default configuration, also shipped as a release asset
 │   └── logrotate.conf     logrotate policy installed by `make install` and install.sh

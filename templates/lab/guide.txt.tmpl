@@ -1,0 +1,64 @@
+GONIX LAB
+=========
+
+A second, separate Nginx for trying GoNix safely. Nothing here touches the
+system's Nginx ({{ .SystemConfig }}) or its service.
+
+  Directory     {{ .Dir }}
+  Nginx         systemd unit {{ .Unit }} ({{ if .Active }}running{{ else }}stopped{{ end }}), config {{ .Dir }}/nginx.conf
+  Ports         HTTP {{ .HTTPPort }}, HTTPS {{ .HTTPSPort }} (certificates are self-signed)
+  Backends      {{ .BackendA }} answers "backend A", {{ .BackendB }} answers "backend B"
+  GoNix         instance "{{ .Instance }}" ({{ .InstanceFile }})
+
+WORKING IN THE LAB
+------------------
+TUI:  Lab > Enter Lab. The title bar says "{{ .Instance }}" and every screen works
+      on the lab. "Exit Lab" in its main menu returns here.
+CLI:  every command takes --instance {{ .Instance }}, for example:
+
+  sudo gonix --instance {{ .Instance }} host list
+  sudo gonix --instance {{ .Instance }} adopt --all --dry-run
+  sudo gonix --instance {{ .Instance }} history show <commit>   # the exact diff of a change
+
+Requests to the test domains, without editing /etc/hosts:
+
+  t() { local h=${1#*://}; h=${h%%/*}; h=${h%%:*}
+        curl -sk -i --resolve "$h:{{ .HTTPPort }}:127.0.0.1" --resolve "$h:{{ .HTTPSPort }}:127.0.0.1" "$@"; }
+  t http://<domain>:{{ .HTTPPort }}/
+  t https://<domain>:{{ .HTTPSPort }}/
+
+TEST HOSTS
+----------
+{{- if not .Hosts }}
+None yet: Lab > Add Test Host.
+{{- end }}
+{{- range .Hosts }}
+  {{ printf "%-22s" .Domain }} {{ .Title }}
+  {{ printf "%-22s" "" }} file {{ .File }}; adopt: {{ .Adopt }}
+{{- end }}
+
+THINGS TO TRY
+-------------
+1. Hand-written hosts are listed as [unmanaged]. Adopt one with --dry-run first:
+   the diff is a single comment line, and the report lists what is kept as
+   written.
+2. Change a setting (upstream, aliases, WebSocket, maintenance, presets, an IP
+   list, a path) and look at `history show`: only the directives involved
+   change. Turning something on and off again restores the file exactly.
+3. On a certbot host: `cert list` shows its certificate as certbot's. Switch to
+   GoNix's copy with `host set <domain> --ssl <domain>`: only the two
+   certificate lines change, and "# managed by Certbot" goes from just those.
+4. Refused changes leave the file alone: `host set <domain> --ssl none`, or a
+   path to an upstream that does not resolve (nginx -t fails, the file is
+   rolled back).
+5. Edit an adopted file by hand, then change it with GoNix: your edit stays.
+   Add a second server block by hand: the host shows [adopted, unreadable].
+6. `adopt release <domain>` hands a host back.
+
+NOTES
+-----
+- This Nginx listens on {{ .HTTPPort }}/{{ .HTTPSPort }}. Redirects GoNix writes include the
+  HTTPS port; redirects certbot wrote for 443 in real life would not.
+- `adopt --verify-renewal` fails here: the certbot certificates are imitations.
+- Lab > Remove Lab stops the unit and deletes {{ .Dir }}, the unit file and
+  the instance configuration.

@@ -1,0 +1,14 @@
+# Lab scenario "multi": two unrelated sites in one file. GoNix refuses to
+# adopt it until the sites are split into their own files.
+server {
+    listen {{ .HTTPPort }};
+    server_name a.{{ .Domain }};
+    default_type text/plain;
+    return 200 "site a\n";
+}
+server {
+    listen {{ .HTTPPort }};
+    server_name b.{{ .Domain }};
+    default_type text/plain;
+    return 200 "site b\n";
+}

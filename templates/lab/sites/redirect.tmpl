@@ -1,0 +1,6 @@
+# Lab scenario "redirect": a whole domain redirected elsewhere.
+server {
+    listen {{ .HTTPPort }};
+    server_name {{ .Domain }};
+    return 301 http://{{ .Target }}$request_uri;
+}

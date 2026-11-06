@@ -215,6 +215,9 @@ func (c *Checker) checkHost(h nginx.Host, add func(Severity, string, string, ...
 }
 
 func (c *Checker) checkCertificate(h nginx.Host, add func(Severity, string, string, ...any)) {
+	if h.SSL.CertFile == "" {
+		return // an adopted file can inherit its certificate from the http block
+	}
 	if _, err := os.Stat(h.SSL.CertFile); err != nil {
 		add(Error, h.ServerName, "certificate %s is missing", h.SSL.CertFile)
 		return

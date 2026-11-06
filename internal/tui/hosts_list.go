@@ -47,8 +47,13 @@ func (s *hostsListScreen) reload() {
 			proto = "HTTPS"
 		}
 		managed := ""
-		if !h.Managed {
+		switch {
+		case h.AdoptError != "":
+			managed = dangerStyle.Render(" [adopted, unreadable]")
+		case !h.Managed:
 			managed = mutedStyle.Render(" [unmanaged]")
+		case h.Adopted != nil:
+			managed = mutedStyle.Render(" [adopted]")
 		}
 		if h.BrokenSymlink {
 			managed += dangerStyle.Render(" [broken symlink]")

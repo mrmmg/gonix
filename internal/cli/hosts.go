@@ -73,6 +73,9 @@ type hostJSON struct {
 	AccessLog   bool           `json:"access_log"`
 	ErrorLog    bool           `json:"error_log"`
 	Broken      bool           `json:"broken_symlink,omitempty"`
+	Adopted     bool           `json:"adopted,omitempty"`
+	AdoptError  string         `json:"adopt_error,omitempty"`
+	Certbot     *certbotJSON   `json:"certbot,omitempty"`
 }
 
 type redirectJSON struct {
@@ -90,7 +93,8 @@ type sslJSON struct {
 }
 
 func toHostJSON(h nginx.ListedHost) hostJSON {
-	j := hostJSON{Name: h.ServerName, File: h.FileName, Aliases: h.ServerAlias, Managed: h.Managed, Enabled: h.Enabled, Broken: h.BrokenSymlink}
+	j := hostJSON{Name: h.ServerName, File: h.FileName, Aliases: h.ServerAlias, Managed: h.Managed, Enabled: h.Enabled, Broken: h.BrokenSymlink,
+		Adopted: h.Adopted != nil, AdoptError: h.AdoptError}
 	if !h.Managed {
 		return j
 	}
@@ -105,6 +109,7 @@ func toHostJSON(h nginx.ListedHost) hostJSON {
 	}
 	if h.SSL.Enabled {
 		j.SSL = &sslJSON{h.SSL.CertFile, h.SSL.KeyFile, h.SSL.HTTP2, h.SSL.HTTP3, h.SSL.ForceHTTPS}
+		j.Certbot = toCertbotJSON(h.SSL.CertFile)
 	}
 	for _, l := range h.Locations {
 		lj := locationJSON{Path: l.Path, AccessList: l.AccessListName, IPList: l.IPListName, RateLimit: l.RateLimit}
@@ -131,8 +136,10 @@ func hostList(e *env, args []string) error {
 		return err
 	}
 	out := make([]hostJSON, 0, len(list))
+	states := map[string]string{}
 	for _, h := range list {
 		out = append(out, toHostJSON(h))
+		states[h.FileName] = adoptedState(h)
 	}
 	return e.show(out, func(w io.Writer) {
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -155,6 +162,9 @@ func hostList(e *env, args []string) error {
 			}
 			if h.SSL != nil {
 				mode += "+ssl"
+			}
+			if s := states[h.File]; s != "" {
+				mode += " (" + s + ")"
 			}
 			if h.Maintenance {
 				state += " (maintenance)"
@@ -192,8 +202,11 @@ func (e *env) managedHost(domain string) (nginx.ListedHost, nginx.Host, error) {
 	if err != nil {
 		return lh, nginx.Host{}, err
 	}
+	if lh.AdoptError != "" {
+		return lh, nginx.Host{}, fmt.Errorf("adopted host %s cannot be edited: %s", lh.ServerName, lh.AdoptError)
+	}
 	if !lh.Managed {
-		return lh, nginx.Host{}, fmt.Errorf("host %s was not created by GoNix and cannot be edited automatically", lh.ServerName)
+		return lh, nginx.Host{}, fmt.Errorf("host %s was not created by GoNix; to manage it, adopt it first (gonix adopt %s)", lh.ServerName, lh.ServerName)
 	}
 	h, err := e.svc.Manager.GetHost(lh.FileName)
 	return lh, h, err
@@ -339,7 +352,7 @@ func hostAdd(e *env, args []string) error {
 		return err
 	}
 
-	h := nginx.Host{ServerName: pos[0], Listen: 80, ListenSSL: 443, AccessLog: true, ErrorLog: true}
+	h := nginx.Host{ServerName: pos[0], Listen: e.svc.Config.Nginx.HTTPPort, ListenSSL: e.svc.Config.Nginx.HTTPSPort, AccessLog: true, ErrorLog: true}
 	if h.ServerAlias, err = hosts.ParseAliases(strings.Join(f.aliases, " "), h.ServerName); err != nil {
 		return err
 	}
@@ -418,7 +431,26 @@ func (e *env) applyCommon(h *nginx.Host, f hostFlags, set map[string]bool) error
 			if err != nil {
 				return err
 			}
-			h.SSL = nginx.SSLConfig{Enabled: true, CertFile: cert, KeyFile: key, HTTP2: f.http2, HTTP3: f.http3, ForceHTTPS: f.forceHTTPS}
+			ssl := nginx.SSLConfig{Enabled: true, CertFile: cert, KeyFile: key, HTTP2: f.http2, HTTP3: f.http3, ForceHTTPS: f.forceHTTPS}
+			if h.Adopted != nil && h.SSL.Enabled {
+				// Switching the certificate of a hand-written host (e.g.
+				// from certbot's to GoNix's) keeps its other TLS settings
+				// unless they are given too.
+				ssl.HTTP2, ssl.HTTP3, ssl.ForceHTTPS = h.SSL.HTTP2, h.SSL.HTTP3, h.SSL.ForceHTTPS
+				if set["http2"] {
+					ssl.HTTP2 = f.http2
+				}
+				if set["http3"] {
+					ssl.HTTP3 = f.http3
+				}
+				if set["force-https"] {
+					ssl.ForceHTTPS = f.forceHTTPS
+				}
+			}
+			h.SSL = ssl
+			if h.ListenSSL == 0 {
+				h.ListenSSL = e.svc.Config.Nginx.HTTPSPort
+			}
 		}
 	} else if h.SSL.Enabled {
 		if set["http2"] {
@@ -531,7 +563,7 @@ func hostSet(e *env, args []string) error {
 		} else {
 			names = strings.Join(h.ServerAlias, " ") + " " + names
 		}
-		if h.ServerAlias, err = hosts.ParseAliases(names, h.ServerName); err != nil {
+		if h.ServerAlias, err = hosts.ParseAliasesKeeping(names, h.ServerName, h.ServerAlias); err != nil {
 			return err
 		}
 	}

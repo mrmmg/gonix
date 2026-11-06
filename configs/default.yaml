@@ -27,6 +27,10 @@ nginx:
   # and Ubuntu: /etc/nginx/modules-enabled).
   streams_dir: /etc/nginx/gonix-streams
   main_include_dir: /etc/nginx/modules-enabled
+  # Ports new hosts listen on. Plain HTTP is redirected to HTTPS with the
+  # port included when it is not 443.
+  http_port: 80
+  https_port: 443
 
 certificates:
   # Centralized certificate directory. Certificates are obtained manually
