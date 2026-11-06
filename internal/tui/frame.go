@@ -32,8 +32,14 @@ func renderFrame(width, height int, title string, body string, help [][2]string)
 	}
 	bar := titleBar + strings.Repeat(" ", gap) + version
 
+	helpLine := renderHelp(help)
+
+	// The box fills every row the title bar, its two borders and the help
+	// line leave. Height is only a minimum in Lip Gloss, so MaxHeight cuts
+	// a body that is too long instead of letting it push the frame past
+	// the bottom of the terminal.
 	contentWidth := width - 4
-	contentHeight := height - 6
+	contentHeight := height - 3 - lipgloss.Height(helpLine)
 	if contentWidth < 10 {
 		contentWidth = 10
 	}
@@ -41,8 +47,7 @@ func renderFrame(width, height int, title string, body string, help [][2]string)
 		contentHeight = 3
 	}
 
-	content := lipgloss.NewStyle().Width(contentWidth).Height(contentHeight).Render(body)
-	helpLine := renderHelp(help)
+	content := lipgloss.NewStyle().Width(contentWidth).Height(contentHeight).MaxHeight(contentHeight).Render(body)
 
 	boxed := appBorderStyle.Width(width - 2).Render(content)
 

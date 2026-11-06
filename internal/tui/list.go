@@ -78,7 +78,7 @@ func (m *simpleMenu) View() string {
 
 // frameChrome is how many terminal rows renderFrame uses around the body
 // (title bar, borders, help line).
-const frameChrome = 6
+const frameChrome = 4
 
 // ViewFit renders the menu below above (the body text already rendered on
 // the screen) within a terminal of the given height, scrolling to keep the

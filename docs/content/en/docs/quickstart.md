@@ -92,6 +92,21 @@ fastest way to *repeat* it, in scripts, in CI, or by an AI agent. Both call the 
 can never disagree.
 {{< /callout >}}
 
+### Keys
+
+The line at the bottom of every screen lists the keys that screen takes. The common ones:
+
+| Key | Does |
+|---|---|
+| `↑` `↓` (or `k` `j`) | Move in a menu, scroll text |
+| `Enter` | Select |
+| `Esc` (or `q`) | Back; on the main menu, quit |
+| `Ctrl+C` | Quit from anywhere |
+
+Long text (a host's configuration, the Lab guide) uses the whole terminal height, and
+its last line says where you are, e.g. `lines 1–40 of 120 · ↓ 80 more`. There, `PgUp` / `PgDn` (or `b` /
+`Space`) move a page, and `Home` / `End` (or `g` / `G`) jump to the top or bottom.
+
 ## Where next
 
 - Why GoNix works this way: [How it works]({{< relref "how-it-works" >}})
