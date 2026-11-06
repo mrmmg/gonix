@@ -19,7 +19,7 @@ server {
 {{- if and .Host.SSL.ForceHTTPS (ne (printf "%v" .Host.Mode) "redirect") }}
 
     if ($scheme != "https") {
-        return 301 https://$host$request_uri;
+        return 301 {{ .Host.HTTPSBase }}$request_uri;
     }
 {{- end }}
 

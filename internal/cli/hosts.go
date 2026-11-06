@@ -352,7 +352,7 @@ func hostAdd(e *env, args []string) error {
 		return err
 	}
 
-	h := nginx.Host{ServerName: pos[0], Listen: 80, ListenSSL: 443, AccessLog: true, ErrorLog: true}
+	h := nginx.Host{ServerName: pos[0], Listen: e.svc.Config.Nginx.HTTPPort, ListenSSL: e.svc.Config.Nginx.HTTPSPort, AccessLog: true, ErrorLog: true}
 	if h.ServerAlias, err = hosts.ParseAliases(strings.Join(f.aliases, " "), h.ServerName); err != nil {
 		return err
 	}
@@ -449,7 +449,7 @@ func (e *env) applyCommon(h *nginx.Host, f hostFlags, set map[string]bool) error
 			}
 			h.SSL = ssl
 			if h.ListenSSL == 0 {
-				h.ListenSSL = 443
+				h.ListenSSL = e.svc.Config.Nginx.HTTPSPort
 			}
 		}
 	} else if h.SSL.Enabled {

@@ -493,7 +493,7 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 				ForceHTTPS: v["force"] == "yes",
 			}
 			if host.ListenSSL == 0 {
-				host.ListenSSL = 443
+				host.ListenSSL = deps.Config.Nginx.HTTPSPort
 			}
 		} else {
 			host.SSL = nginx.SSLConfig{}

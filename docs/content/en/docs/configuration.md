@@ -24,6 +24,8 @@ the `GONIX_CONFIG` environment variable. The shipped default is
 | `cache_dir` | `/var/cache/nginx/gonix` | Where the `proxy-cache` preset stores responses |
 | `streams_dir` | `/etc/nginx/gonix-streams` | TCP/UDP stream proxies |
 | `main_include_dir` | `/etc/nginx/modules-enabled` | Top-level include dir where GoNix can create a `stream` block |
+| `http_port` | `80` | Port new hosts listen on for HTTP |
+| `https_port` | `443` | Port new hosts listen on for HTTPS; when it is not 443, HTTP-to-HTTPS redirects include it |
 
 ## `certificates`
 

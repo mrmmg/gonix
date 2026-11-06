@@ -206,6 +206,15 @@ type Adoption struct {
 	Source string
 }
 
+// HTTPSBase is where plain HTTP is redirected to: https://$host, plus the
+// port when HTTPS is not on the standard one.
+func (h Host) HTTPSBase() string {
+	if h.ListenSSL == 0 || h.ListenSSL == 443 {
+		return "https://$host"
+	}
+	return fmt.Sprintf("https://$host:%d", h.ListenSSL)
+}
+
 // ConfigFile returns the name of the host's file in sites-available.
 func (h Host) ConfigFile() string {
 	if h.Adopted != nil {

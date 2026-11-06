@@ -233,8 +233,8 @@ func validatePort(v string) error {
 func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 	h := nginx.Host{
 		ServerName: v["domain"],
-		Listen:     80,
-		ListenSSL:  443,
+		Listen:     deps.Config.Nginx.HTTPPort,
+		ListenSSL:  deps.Config.Nginx.HTTPSPort,
 		AccessLog:  true,
 		ErrorLog:   true,
 	}

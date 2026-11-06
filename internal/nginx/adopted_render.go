@@ -228,7 +228,7 @@ func (e *adoptedEditor) syncHostIfs(l *ast.List, names []string) error {
 		if have[name] {
 			continue
 		}
-		nodes, err := e.fragment(ind, "\nif ($host = "+name+") {\n"+step+"return 301 https://$host$request_uri;\n}")
+		nodes, err := e.fragment(ind, "\nif ($host = "+name+") {\n"+step+"return 301 "+e.want.HTTPSBase()+"$request_uri;\n}")
 		if err != nil {
 			return err
 		}
@@ -370,7 +370,7 @@ func (e *adoptedEditor) setForceHTTPS(on bool) error {
 		}
 		return nil
 	}
-	nodes, err := e.fragment(e.ind, "\n\nif ($scheme != \"https\") {\n"+step+"return 301 https://$host$request_uri;\n}")
+	nodes, err := e.fragment(e.ind, "\n\nif ($scheme != \"https\") {\n"+step+"return 301 "+e.want.HTTPSBase()+"$request_uri;\n}")
 	if err != nil {
 		return err
 	}

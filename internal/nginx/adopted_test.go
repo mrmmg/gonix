@@ -523,3 +523,21 @@ func TestAdoptedHTTPBlockForOtherNamesIsLeftAlone(t *testing.T) {
 		t.Errorf("got\n%s", out)
 	}
 }
+
+// Plain HTTP goes to the HTTPS port actually in use.
+func TestHTTPSRedirectKeepsNonStandardPort(t *testing.T) {
+	r := testRenderer(t)
+	h := Host{ServerName: "a.example.com", Mode: ModeStatic, Root: "/srv", Listen: 8080, ListenSSL: 8443, AccessLog: true, ErrorLog: true,
+		SSL: SSLConfig{Enabled: true, CertFile: "/c", KeyFile: "/k", ForceHTTPS: true}}
+	if out := render(t, r, h); !strings.Contains(out, "return 301 https://$host:8443$request_uri;") {
+		t.Errorf("template:\n%s", out)
+	}
+	h.ListenSSL = 443
+	if out := render(t, r, h); !strings.Contains(out, "return 301 https://$host$request_uri;") {
+		t.Errorf("template on 443:\n%s", out)
+	}
+	src := "server {\n    listen 8080;\n    listen 8443 ssl;\n    server_name a.example.com;\n    ssl_certificate /c;\n    ssl_certificate_key /k;\n    root /srv;\n}\n"
+	if out := change(t, r, src, func(h *Host) { h.SSL.ForceHTTPS = true }); !strings.Contains(out, "return 301 https://$host:8443$request_uri;") {
+		t.Errorf("adopted:\n%s", out)
+	}
+}

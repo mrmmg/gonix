@@ -24,6 +24,8 @@ weight: 170
 | `cache_dir` | `/var/cache/nginx/gonix` | محل ذخیره‌ی پاسخ‌ها در preset مربوط به `proxy-cache` |
 | `streams_dir` | `/etc/nginx/gonix-streams` | پروکسی‌های TCP/UDP |
 | `main_include_dir` | `/etc/nginx/modules-enabled` | پوشه‌ی include سطح بالا که گونیکس می‌تواند بلاک `stream` را در آن بسازد |
+| `http_port` | `80` | پورتی که هاست‌های جدید برای HTTP روی آن گوش می‌دهند |
+| `https_port` | `443` | پورتی که هاست‌های جدید برای HTTPS روی آن گوش می‌دهند؛ اگر 443 نباشد، در ریدایرکت HTTP به HTTPS آورده می‌شود |
 
 ## `certificates`
 
