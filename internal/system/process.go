@@ -73,6 +73,31 @@ func FindProcesses(procDir string) (ProcessInfo, error) {
 	return info, nil
 }
 
+// ChildProcesses describes the Nginx master with the given pid and its
+// workers.
+func ChildProcesses(procDir string, master int) (ProcessInfo, error) {
+	if procDir == "" {
+		procDir = "/proc"
+	}
+	entries, err := os.ReadDir(procDir)
+	if err != nil {
+		return ProcessInfo{}, fmt.Errorf("reading %s: %w", procDir, err)
+	}
+	info := ProcessInfo{MasterPID: master, TotalCount: 1}
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil || pid == master {
+			continue
+		}
+		if readPPID(filepath.Join(procDir, e.Name(), "stat")) == master {
+			info.WorkerPIDs = append(info.WorkerPIDs, pid)
+		}
+	}
+	info.WorkerCount = len(info.WorkerPIDs)
+	info.TotalCount += info.WorkerCount
+	return info, nil
+}
+
 func readPPID(statPath string) int {
 	data, err := os.ReadFile(statPath)
 	if err != nil {

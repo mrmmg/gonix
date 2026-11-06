@@ -30,10 +30,15 @@ func Upstreams(h nginx.Host) []string {
 	return out
 }
 
-// Check dials every address concurrently and returns the error for each
-// address that did not accept a TCP connection within timeout.
-func Check(ctx context.Context, addrs []string, timeout time.Duration) map[string]error {
-	failed := map[string]error{}
+// Probe is the outcome of dialing one address.
+type Probe struct {
+	Err      error
+	Duration time.Duration // time to connect, or until the attempt failed
+}
+
+// Probes dials every address concurrently and returns the outcome for each.
+func Probes(ctx context.Context, addrs []string, timeout time.Duration) map[string]Probe {
+	out := map[string]Probe{}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	d := net.Dialer{Timeout: timeout}
@@ -41,16 +46,28 @@ func Check(ctx context.Context, addrs []string, timeout time.Duration) map[strin
 		wg.Add(1)
 		go func(addr string) {
 			defer wg.Done()
+			start := time.Now()
 			c, err := d.DialContext(ctx, "tcp", addr)
-			if err != nil {
-				mu.Lock()
-				failed[addr] = err
-				mu.Unlock()
-				return
+			if err == nil {
+				c.Close()
 			}
-			c.Close()
+			mu.Lock()
+			out[addr] = Probe{Err: err, Duration: time.Since(start)}
+			mu.Unlock()
 		}(addr)
 	}
 	wg.Wait()
+	return out
+}
+
+// Check dials every address concurrently and returns the error for each
+// address that did not accept a TCP connection within timeout.
+func Check(ctx context.Context, addrs []string, timeout time.Duration) map[string]error {
+	failed := map[string]error{}
+	for addr, p := range Probes(ctx, addrs, timeout) {
+		if p.Err != nil {
+			failed[addr] = p.Err
+		}
+	}
 	return failed
 }

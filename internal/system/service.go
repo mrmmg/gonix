@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -103,4 +104,19 @@ func (s *Service) Reload(ctx context.Context) error {
 		return fmt.Errorf("reloading nginx: %w: %s", err, out)
 	}
 	return nil
+}
+
+// MainPID returns the master process of the unit, or 0 when it is not
+// running. Asking systemd (rather than scanning /proc for any nginx) keeps
+// several Nginx instances on one server apart.
+func (s *Service) MainPID(ctx context.Context) (int, error) {
+	out, err := s.systemctl(ctx, "show", "--property=MainPID", "--value", s.UnitName)
+	if err != nil {
+		return 0, err
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(out))
+	if err != nil {
+		return 0, fmt.Errorf("unexpected MainPID %q", strings.TrimSpace(out))
+	}
+	return pid, nil
 }

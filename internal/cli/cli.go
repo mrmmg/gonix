@@ -191,7 +191,7 @@ func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig s
 
 // needsServices is false for commands that work without a configuration.
 func needsServices(c command) bool {
-	return !strings.HasPrefix(c.path, "skill") && c.path != "instances" && c.path != "mcp"
+	return !strings.HasPrefix(c.path, "skill") && c.path != "instances" && c.path != "mcp" && c.path != "exporter dashboard"
 }
 
 // done reports a successful write: the plan in dry-run mode, else msg.

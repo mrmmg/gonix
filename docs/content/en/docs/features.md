@@ -46,6 +46,7 @@ weight: 5
 - **Live logs.** Follow requests with filters (`status:5xx`, `ip:`, `path:`), a summary of top IPs, paths and statuses, and block an abusive IP straight from the log view. See [Logs and monitoring]({{< relref "logs-and-monitoring" >}}).
 - **Audit log.** Every change is recorded with timestamp, Linux user, action, target and result.
 - **Config Check.** Finds duplicate server names, missing files, expiring or mismatched certificates, unreachable upstreams, unused snippets and other common mistakes.
+- **Prometheus and Grafana.** `gonix exporter` serves metrics for certificates, backends, hosts, Nginx and traffic, runs as a systemd service GoNix controls itself, and `gonix exporter dashboard` writes a matching Grafana dashboard. See [Prometheus and Grafana]({{< relref "prometheus-grafana" >}}).
 - **Service control and monitoring.** Start, stop, restart, reload and test Nginx, with master and worker discovery, memory, uptime and listening ports read from `/proc`.
 
 ## Safety and migration

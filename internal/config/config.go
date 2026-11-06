@@ -4,10 +4,16 @@ package config
 
 import (
 	"fmt"
+	"hash/crc32"
+	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -31,6 +37,7 @@ type Config struct {
 	ErrorPages   ErrorPagesConfig   `yaml:"error_pages"`
 	GeoIP        GeoIPConfig        `yaml:"geoip"`
 	History      HistoryConfig      `yaml:"history"`
+	Monitoring   MonitoringConfig   `yaml:"monitoring"`
 }
 
 type HistoryConfig struct {
@@ -147,6 +154,11 @@ func Default() *Config {
 			Enabled: true,
 			GitDir:  "/etc/gonix/history.git",
 		},
+		Monitoring: MonitoringConfig{
+			Listen:     "127.0.0.1:9113",
+			CacheTTL:   30 * time.Second,
+			StubStatus: StubStatusConfig{Listen: "127.0.0.1:9114"},
+		},
 	}
 }
 
@@ -166,6 +178,9 @@ func Load(path string) (*Config, error) {
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parsing config file %s: %w", path, err)
+	}
+	if err := cfg.Monitoring.Validate(); err != nil {
+		return nil, fmt.Errorf("config file %s: %w", path, err)
 	}
 	if cfg.Instance != "" {
 		if !reInstance.MatchString(cfg.Instance) {
@@ -231,5 +246,116 @@ func applyInstanceDefaults(cfg *Config) {
 	move(&cfg.Backup.Directory, def.Backup.Directory, filepath.Join(base, "backups"))
 	move(&cfg.AccessLists.Directory, def.AccessLists.Directory, filepath.Join(base, "accesslists"))
 	move(&cfg.History.GitDir, def.History.GitDir, filepath.Join(base, "history.git"))
+	// Every instance runs its own exporter, so each needs its own ports.
+	n := crc32.ChecksumIEEE([]byte(cfg.Instance)) % 400
+	move(&cfg.Monitoring.Listen, def.Monitoring.Listen, "127.0.0.1:"+strconv.Itoa(9200+int(n)))
+	move(&cfg.Monitoring.StubStatus.Listen, def.Monitoring.StubStatus.Listen, "127.0.0.1:"+strconv.Itoa(9600+int(n)))
 	move(&cfg.Logs.AuditFile, def.Logs.AuditFile, filepath.Join(filepath.Dir(def.Logs.AuditFile), cfg.Instance+"-audit.log"))
+}
+
+// Collectors are the metric groups the exporter can serve.
+var Collectors = []string{"gonix", "certificates", "upstreams", "nginx", "traffic", "logfiles"}
+
+// MonitoringConfig configures the Prometheus exporter (gonix exporter).
+type MonitoringConfig struct {
+	// Listen is the address the exporter serves /metrics on. It stays on
+	// loopback unless changed on purpose.
+	Listen string `yaml:"listen"`
+	// Hosts limits per-host metrics to hosts matching these patterns
+	// (shell-style, e.g. "*.example.com"); empty means every host.
+	Hosts []string `yaml:"hosts"`
+	// ExcludeHosts removes hosts matching these patterns.
+	ExcludeHosts []string `yaml:"exclude_hosts"`
+	// Collectors lists the enabled metric groups (see Collectors); empty
+	// means all of them.
+	Collectors []string `yaml:"collectors"`
+	// CacheTTL is how long the results of slow collectors (certificates,
+	// upstream probes, nginx -t) are reused between scrapes.
+	CacheTTL time.Duration `yaml:"cache_ttl"`
+	// StubStatus adds Nginx's connection counters (needs the
+	// http_stub_status_module).
+	StubStatus StubStatusConfig `yaml:"stub_status"`
+}
+
+// StubStatusConfig is a local-only Nginx server exposing stub_status.
+type StubStatusConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Listen  string `yaml:"listen"`
+}
+
+// ValidListen reports whether addr is a host:port with a usable port.
+func ValidListen(addr string) error {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("address %q must look like 127.0.0.1:9113", addr)
+	}
+	if p, err := strconv.Atoi(port); err != nil || p < 1 || p > 65535 {
+		return fmt.Errorf("address %q has an invalid port", addr)
+	}
+	return nil
+}
+
+// Validate checks the monitoring settings.
+func (m MonitoringConfig) Validate() error {
+	if err := ValidListen(m.Listen); err != nil {
+		return fmt.Errorf("monitoring.listen: %w", err)
+	}
+	if err := ValidListen(m.StubStatus.Listen); err != nil {
+		return fmt.Errorf("monitoring.stub_status.listen: %w", err)
+	}
+	if m.CacheTTL < 0 {
+		return fmt.Errorf("monitoring.cache_ttl must not be negative")
+	}
+	for _, c := range m.Collectors {
+		if !slices.Contains(Collectors, c) {
+			return fmt.Errorf("monitoring.collectors: unknown collector %q (use %s)", c, strings.Join(Collectors, ", "))
+		}
+	}
+	for _, p := range append(slices.Clone(m.Hosts), m.ExcludeHosts...) {
+		if _, err := path.Match(p, ""); err != nil {
+			return fmt.Errorf("monitoring: bad host pattern %q", p)
+		}
+	}
+	return nil
+}
+
+// SaveMonitoring replaces only the monitoring section of the file at path,
+// leaving the rest of it (and its comments) as it was.
+func SaveMonitoring(path string, m MonitoringConfig) error {
+	var doc yaml.Node
+	if data, err := os.ReadFile(path); err == nil {
+		if err := yaml.Unmarshal(data, &doc); err != nil {
+			return fmt.Errorf("parsing config file %s: %w", path, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if doc.Kind == 0 {
+		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
+	}
+	root := doc.Content[0]
+	if root.Kind != yaml.MappingNode {
+		return fmt.Errorf("config file %s is not a YAML mapping", path)
+	}
+	var node yaml.Node
+	if err := node.Encode(m); err != nil {
+		return err
+	}
+	replaced := false
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == "monitoring" {
+			root.Content[i+1], replaced = &node, true
+		}
+	}
+	if !replaced {
+		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: "monitoring"}, &node)
+	}
+	data, err := yaml.Marshal(&doc)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }

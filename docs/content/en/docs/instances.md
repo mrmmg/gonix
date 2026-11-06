@@ -20,7 +20,7 @@ sudo gonix --instance staging host list           # or a command against it
 
 Paths left at their defaults (backups, history, audit log, access lists) are **separated per instance**
 automatically, so staging never writes into production's backups or history. For example, each instance has
-its own `/var/log/gonix/<instance>-audit.log`.
+its own `/var/log/gonix/<instance>-audit.log`. The Prometheus exporter (unit `gonix-exporter-<instance>`) also gets its own stable port; see [Prometheus and Grafana]({{< relref "prometheus-grafana" >}}).
 
 ## Pointing at a different Nginx
 
