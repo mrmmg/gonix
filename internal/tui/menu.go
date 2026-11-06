@@ -32,6 +32,7 @@ const (
 	miErrorPages
 	miConfigCheck
 	miHistory
+	miMonitoring
 	miSettings
 	miLab
 	miExit
@@ -53,6 +54,7 @@ func newMainMenu(deps Deps) *mainMenu {
 		{title: "Error Pages", desc: "custom error page snippets for hosts"},
 		{title: "Config Check", desc: "conflicts, missing files, expiring certificates, dead upstreams"},
 		{title: "Configuration History", desc: "every change as a Git commit; diff and restore"},
+		{title: "Monitoring", desc: "Prometheus exporter for Grafana: control and settings"},
 		{title: "Settings", desc: "GoNix configuration"},
 		{title: "Lab", desc: "a separate Nginx with hand-written test hosts, for trying GoNix"},
 		{title: "Exit", desc: ""},
@@ -124,6 +126,8 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newConfigCheckScreen(s.deps))
 			case miHistory:
 				return s, navPush(newHistoryScreen(s.deps))
+			case miMonitoring:
+				return s, navPush(newMonitoringScreen(s.deps))
 			case miSettings:
 				return s, navPush(newSettingsScreen(s.deps))
 			case miLab:

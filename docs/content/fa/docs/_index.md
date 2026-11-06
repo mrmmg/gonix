@@ -38,6 +38,7 @@ weight: 1
   {{< card link="error-pages" title="صفحه‌های خطا" subtitle="به‌جای یک 502 خشک و خاکستری، صفحه‌ی خودتان." icon="exclamation-circle" >}}
   {{< card link="load-balancing" title="توزیع بار و Stream" subtitle="گروه‌های upstream و پروکسی TCP/UDP." icon="switch-horizontal" >}}
   {{< card link="logs-and-monitoring" title="لاگ و پایش" subtitle="لاگ زنده، لاگ تغییرات و Config Check." icon="chart-bar" >}}
+  {{< card link="prometheus-grafana" title="Prometheus و Grafana" subtitle="exporter، متریک‌ها و داشبورد آماده." icon="chart-pie" >}}
   {{< card link="backups-history" title="پشتیبان و تاریخچه" subtitle="هر تغییری را می‌شود برگرداند." icon="clock" >}}
   {{< card link="migration" title="جابه‌جایی سرور" subtitle="رفتن به سرور جدید، یا خداحافظی با Nginx Proxy Manager." icon="truck" >}}
   {{< card link="cli" title="خط فرمان" subtitle="اسکریپت، CI و مرجع کامل دستورها." icon="terminal" >}}

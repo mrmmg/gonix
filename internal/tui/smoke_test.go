@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
+	"github.com/mrmmg/gonix/internal/exporter"
 	"github.com/mrmmg/gonix/internal/geoblock"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
@@ -73,8 +76,15 @@ func testDeps(t *testing.T) Deps {
 	cfg.Nginx.HTTPSnippetsDir = t.TempDir()
 	writer := &snippet.Writer{Tester: okTester{}, Audit: auditLogger}
 
+	cfgPath := filepath.Join(t.TempDir(), "gonix.yaml")
+	ex := exporter.New(cfg, cfgPath, writer)
+	ex.UnitDir = t.TempDir()
+	ex.Systemctl = func(context.Context, ...string) (string, error) { return "inactive", nil }
+
 	return Deps{
 		Config:      cfg,
+		ConfigPath:  cfgPath,
+		Exporter:    ex,
 		Manager:     manager,
 		HostService: svc,
 		AccessLists: accessLists,

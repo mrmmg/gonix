@@ -74,6 +74,19 @@ the `GONIX_CONFIG` environment variable. The shipped default is
 | `enabled` | `true` | Commit every successful change to Git |
 | `git_dir` | `/etc/gonix/history.git` | Repository, kept outside `/etc/nginx` |
 
+## `monitoring`
+
+The Prometheus exporter; see [Prometheus and Grafana]({{< relref "prometheus-grafana" >}}). Change it with
+`gonix exporter set` or the TUI's Monitoring screen.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `listen` | `127.0.0.1:9113` | Where `/metrics` is served (a stable per-instance port for instances) |
+| `hosts` / `exclude_hosts` | empty | Host patterns to include / leave out |
+| `collectors` | empty (all) | `gonix`, `certificates`, `upstreams`, `nginx`, `traffic`, `logfiles` |
+| `cache_ttl` | `30s` | How long slow results are reused between scrapes |
+| `stub_status.enabled` / `.listen` | `false` / `127.0.0.1:9114` | Nginx connection counters |
+
 ## Environment variables
 
 | Variable | Meaning |

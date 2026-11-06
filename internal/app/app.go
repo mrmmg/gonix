@@ -13,6 +13,7 @@ import (
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
+	"github.com/mrmmg/gonix/internal/exporter"
 	"github.com/mrmmg/gonix/internal/geoblock"
 	"github.com/mrmmg/gonix/internal/history"
 	"github.com/mrmmg/gonix/internal/hosts"
@@ -32,6 +33,8 @@ import (
 // with Nginx and the filesystem through these, never directly.
 type Services struct {
 	Config      *config.Config
+	ConfigPath  string // the file Config was loaded from
+	Exporter    *exporter.Service
 	Manager     *nginx.Manager
 	HostService *hosts.Service
 	Certs       string // certificate directory, screens call certificates.Scan themselves
@@ -155,6 +158,8 @@ func Build(cfgPath string) (*Services, error) {
 
 	return &Services{
 		Config:      cfg,
+		ConfigPath:  cfgPath,
+		Exporter:    exporter.New(cfg, cfgPath, snippetWriter),
 		Manager:     manager,
 		HostService: hostService,
 		AccessLists: accessLists,

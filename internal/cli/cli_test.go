@@ -15,6 +15,7 @@ import (
 	"github.com/mrmmg/gonix/internal/backup"
 	"github.com/mrmmg/gonix/internal/config"
 	"github.com/mrmmg/gonix/internal/errorpages"
+	"github.com/mrmmg/gonix/internal/exporter"
 	"github.com/mrmmg/gonix/internal/geoblock"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/iplist"
@@ -67,8 +68,13 @@ func newServices(t *testing.T) *app.Services {
 	alStore, _ := accesslist.NewStore(cfg.AccessLists.Directory, "")
 	streamSvc := &streams.Service{Dir: cfg.Nginx.StreamsDir, MainIncludeDir: cfg.Nginx.MainIncludeDir, ConfigDir: cfg.Nginx.ConfigDir,
 		SnippetsDir: cfg.ErrorPages.SnippetsDirectory, Writer: writer}
+	ex := exporter.New(cfg, filepath.Join(root, "gonix.yaml"), writer)
+	ex.UnitDir = t.TempDir()
+	ex.Systemctl = func(context.Context, ...string) (string, error) { return "inactive", nil }
 	return &app.Services{
-		Config: cfg, Manager: mgr, HostService: hostSvc, AccessLists: alStore,
+		ConfigPath: filepath.Join(root, "gonix.yaml"),
+		Exporter:   ex,
+		Config:     cfg, Manager: mgr, HostService: hostSvc, AccessLists: alStore,
 		ErrorPages:  &errorpages.Service{Store: epStore, Manager: mgr, Tester: okTester{}, Audit: auditLog},
 		IPLists:     &iplist.Service{Store: ipStore, Manager: mgr, Writer: writer, OtherUsers: streamSvc.UsingIPList},
 		RealIP:      &realip.Service{Dir: cfg.Nginx.HTTPSnippetsDir, Writer: writer},
@@ -412,5 +418,59 @@ func TestNPMImport(t *testing.T) {
 	json.Unmarshal([]byte(h.ok("npm-import", "--data", data, "--letsencrypt", le, "--json")), &res)
 	if len(res.Imported) != 0 {
 		t.Errorf("second import = %v", res.Imported)
+	}
+}
+
+func TestExporterSettingsAndMetrics(t *testing.T) {
+	h := newHarness(t)
+	h.ok("host", "add", "api.example.com", "--upstream", "http://127.0.0.1:1")
+	h.ok("host", "add", "web.example.org", "--root", t.TempDir())
+
+	out := h.ok("exporter", "metrics", "--collect", "gonix", "--host", "api.example.com")
+	if !strings.Contains(out, `gonix_host_enabled{gonix_instance="default",host="api.example.com"} 1`) {
+		t.Errorf("metrics:\n%s", out)
+	}
+	if strings.Contains(out, "web.example.org") {
+		t.Error("--host did not filter")
+	}
+	h.fails(1, "exporter", "metrics", "--collect", "bogus")
+
+	h.ok("exporter", "set", "--hosts", "*.example.com", "--collectors", "gonix,certificates", "--cache-ttl", "10s")
+	var st exporterJSON
+	if err := json.Unmarshal([]byte(h.ok("exporter", "status", "--json")), &st); err != nil {
+		t.Fatal(err)
+	}
+	m := st.Settings
+	if len(m.Hosts) != 1 || len(m.Collectors) != 2 || m.CacheTTL.String() != "10s" || st.Unit != "gonix-exporter" {
+		t.Errorf("status = %+v", st)
+	}
+	loaded, err := config.Load(h.svc.ConfigPath)
+	if err != nil || loaded.Monitoring.Hosts[0] != "*.example.com" {
+		t.Errorf("settings not saved to %s: %v", h.svc.ConfigPath, err)
+	}
+
+	h.ok("exporter", "set", "--hosts", "none", "--collectors", "all")
+	h.fails(2, "exporter", "set")
+	h.fails(1, "exporter", "set", "--listen", "nonsense")
+	h.fails(1, "exporter", "set", "--collectors", "bogus")
+}
+
+func TestExporterDashboard(t *testing.T) {
+	h := newHarness(t)
+	out := h.ok("exporter", "dashboard")
+	var d map[string]any
+	if err := json.Unmarshal([]byte(out), &d); err != nil || d["uid"] != "gonix-overview" {
+		t.Fatalf("stdout is not the dashboard: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "grafana", "gonix.json")
+	h.ok("exporter", "dashboard", "--out", path)
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != out {
+		t.Errorf("file differs from stdout (err %v)", err)
+	}
+	var res map[string]any
+	json.Unmarshal([]byte(h.ok("exporter", "dashboard", "--out", path, "--json")), &res)
+	if res["path"] != path {
+		t.Errorf("--json = %v", res)
 	}
 }

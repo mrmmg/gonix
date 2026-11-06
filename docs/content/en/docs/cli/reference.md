@@ -78,6 +78,12 @@ Common `host add` / `host set` flags:
 | `check [--no-upstreams]` | Config Check |
 | `cert list [--letsencrypt DIR\|none]` | Certificates and their expiry, certbot's included |
 | `nginx status\|test\|reload` | Service control |
+| `exporter enable\|disable\|start\|stop\|restart\|uninstall` | Run the Prometheus exporter as a systemd service |
+| `exporter status` | Service state and settings |
+| `exporter set [--listen ADDR] [--hosts P,..\|none] [--exclude-hosts P,..\|none] [--collectors C,..\|all] [--cache-ttl 30s] [--stub-status on\|off]` | Change its settings; see [Prometheus and Grafana]({{< relref "prometheus-grafana" >}}) |
+| `exporter metrics [--host P]... [--exclude-host P]... [--collect NAME]...` | Print one scrape |
+| `exporter dashboard [--out FILE\|DIR]` | Write the Grafana dashboard for these metrics (stdout if no `--out`; needs no root) |
+| `exporter run` | Serve `/metrics` in the foreground (what the unit runs) |
 
 ## History and moving
 

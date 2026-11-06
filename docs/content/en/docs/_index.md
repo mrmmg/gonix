@@ -37,6 +37,7 @@ Curious about everything it can do? See [Features]({{< relref "features" >}}).
   {{< card link="traffic" title="Traffic shaping" subtitle="Presets, rate limits, maintenance mode." icon="adjustments" >}}
   {{< card link="load-balancing" title="Load balancing and streams" subtitle="Upstream groups and TCP/UDP proxies." icon="switch-horizontal" >}}
   {{< card link="logs-and-monitoring" title="Logs and monitoring" subtitle="Live logs, audit log, Config Check." icon="chart-bar" >}}
+  {{< card link="prometheus-grafana" title="Prometheus and Grafana" subtitle="An exporter, metrics and a ready-made dashboard." icon="chart-pie" >}}
   {{< card link="backups-history" title="Backups and history" subtitle="Undo anything." icon="clock" >}}
   {{< card link="migration" title="Migration" subtitle="Move servers, or leave Nginx Proxy Manager." icon="truck" >}}
   {{< card link="cli" title="Command line" subtitle="Scripts, CI and the full command reference." icon="terminal" >}}

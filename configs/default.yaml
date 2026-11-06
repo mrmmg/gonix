@@ -76,3 +76,22 @@ history:
   # outside /etc/nginx.
   enabled: true
   git_dir: /etc/gonix/history.git
+
+monitoring:
+  # The Prometheus exporter ("gonix exporter"). Change these with
+  # "gonix exporter set" or the TUI's Monitoring screen, which also restart
+  # the exporter; the systemd unit never contains a setting.
+  # Where /metrics is served. Keep it on loopback unless you mean to expose it.
+  listen: 127.0.0.1:9113
+  # Only these hosts (patterns such as "*.example.com"); empty means all.
+  hosts: []
+  exclude_hosts: []
+  # Enabled metric groups: gonix, certificates, upstreams, nginx, traffic,
+  # logfiles. Empty means all of them.
+  collectors: []
+  # How long certificates, backend probes and "nginx -t" are reused.
+  cache_ttl: 30s
+  # Nginx connection counters; needs the http_stub_status_module.
+  stub_status:
+    enabled: false
+    listen: 127.0.0.1:9114
