@@ -1,0 +1,5 @@
+{{- /* A documentation screenshot from static/images, with a caption. Usage: {{< screenshot src="monitoring/x.png" alt="..." >}} */ -}}
+<figure>
+  <a href="{{ printf "images/%s" (.Get "src") | relURL }}"><img src="{{ printf "images/%s" (.Get "src") | relURL }}" alt="{{ .Get "alt" }}" loading="lazy" style="max-width:100%;height:auto"></a>
+  <figcaption>{{ .Get "alt" }}</figcaption>
+</figure>

@@ -139,6 +139,18 @@ The generator is built from the same definitions the exporter uses (`internal/me
 check every query against them: that the metric and its labels exist, that counters are only used with
 `rate()` or `increase()`, and that the variables are defined.
 
+## Screenshots
+
+The dashboard in Grafana (click an image to enlarge it).
+
+{{< screenshot src="monitoring/dashboard-overview.png" alt="Overview and Traffic rows" >}}
+
+{{< screenshot src="monitoring/dashboard-certificates.png" alt="Certificates row" >}}
+
+{{< screenshot src="monitoring/dashboard-nginx-logs.png" alt="Nginx, and Logs and disk rows" >}}
+
+{{< screenshot src="monitoring/dashboard-gonix.png" alt="GoNix row" >}}
+
 ## Multiple instances
 
 Each [instance]({{< relref "instances" >}}) has its own exporter, unit and settings:

@@ -103,6 +103,18 @@ gonix exporter dashboard > gonix-dashboard.json                      # یا stdo
 (`internal/metrics/defs.go`) و تست‌ها هر query را با آن‌ها می‌سنجند: وجود متریک و برچسب‌ها، استفادهٔ counterها
 فقط با `rate()` یا `increase()`، و تعریف‌شده بودن متغیرها.
 
+## تصاویر
+
+داشبورد در Grafana (برای بزرگ‌نمایی روی هر تصویر کلیک کنید).
+
+{{< screenshot src="monitoring/dashboard-overview.png" alt="نمای کلی و ترافیک" >}}
+
+{{< screenshot src="monitoring/dashboard-certificates.png" alt="ردیف گواهی‌ها" >}}
+
+{{< screenshot src="monitoring/dashboard-nginx-logs.png" alt="ردیف‌های Nginx و لاگ‌ها و دیسک" >}}
+
+{{< screenshot src="monitoring/dashboard-gonix.png" alt="ردیف GoNix" >}}
+
 ## چند instance
 
 هر [instance]({{< relref "instances" >}}) exporter، unit و تنظیمات خودش را دارد:
