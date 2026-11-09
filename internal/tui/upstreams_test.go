@@ -42,6 +42,7 @@ func TestUpstreamGroupWizardAndAddHost(t *testing.T) {
 	for i := 0; i < 8; i++ {     // scheme .. send timeout, SSL no
 		model = pressEnter(t, model)
 	}
+	model = pressEnter(t, model) // review: apply
 	requireOKResult(t, root)
 	h, err := deps.Manager.GetHost("example.com")
 	if err != nil {

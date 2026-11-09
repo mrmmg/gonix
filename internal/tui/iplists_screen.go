@@ -30,11 +30,11 @@ func (s *ipListsScreen) reload() {
 		s.err = err.Error()
 	}
 	s.lists = lists
-	items := []menuItem{{title: "+ Create IP Access List"}}
+	items := []menuItem{{title: "+ Create IP Access List", pinned: true}}
 	for _, l := range lists {
 		items = append(items, menuItem{title: l.Name, desc: ipListDesc(l)})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name, address or network")
 }
 
 func ipListDesc(l iplist.List) string {
@@ -57,6 +57,9 @@ func (s *ipListsScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
+			if s.menu.Selected() < 0 {
+				return s, nil
+			}
 			if s.menu.Selected() == 0 {
 				return s, navPush(newIPListWizard(s.deps, nil))
 			}
@@ -74,7 +77,7 @@ func (s *ipListsScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

@@ -30,14 +30,14 @@ func newGeoScreen(deps Deps) *geoScreen {
 	s.lists = lists
 	items := []menuItem{}
 	if !s.ready {
-		items = append(items, menuItem{title: "Set Up GeoIP", desc: "load " + deps.Config.GeoIP.Database})
+		items = append(items, menuItem{title: "Set Up GeoIP", desc: "load " + deps.Config.GeoIP.Database, pinned: true})
 	} else {
-		items = append(items, menuItem{title: "+ Create Country List"})
+		items = append(items, menuItem{title: "+ Create Country List", pinned: true})
 	}
 	for _, l := range lists {
 		items = append(items, menuItem{title: l.Name, desc: fmt.Sprintf("%s: %s", l.Mode, strings.Join(l.Countries, " "))})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name, mode or country")
 	return s
 }
 
@@ -52,6 +52,9 @@ func (s *geoScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
+			if s.menu.Selected() < 0 {
+				return s, nil
+			}
 			if s.menu.Selected() == 0 {
 				if !s.ready {
 					if err := s.deps.GeoBlock.SetUp(backgroundCtx()); err != nil {
@@ -81,7 +84,7 @@ func (s *geoScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

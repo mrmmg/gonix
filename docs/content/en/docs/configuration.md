@@ -32,6 +32,7 @@ the `GONIX_CONFIG` environment variable. The shipped default is
 | Key | Default | Meaning |
 |---|---|---|
 | `directory` | `/etc/nginx/certs` | One folder per domain with `fullchain.pem` and `privkey.pem` |
+| `letsencrypt_dir` | `/etc/letsencrypt` | certbot's directory: its `live/` certificates are listed next to GoNix's own, tagged `[Let's Encrypt]`, and renewed with certbot when it is installed |
 
 ## `logs`
 
@@ -73,6 +74,16 @@ the `GONIX_CONFIG` environment variable. The shipped default is
 |---|---|---|
 | `enabled` | `true` | Commit every successful change to Git |
 | `git_dir` | `/etc/gonix/history.git` | Repository, kept outside `/etc/nginx` |
+
+## `update`
+
+Where GoNix learns about new releases. The source is always this project's GitHub Releases. Both options can
+be switched in the TUI's Settings.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `check` | `true` | Ask GitHub, at most once a day, whether a newer release exists and say so in the main menu. Turn it off on servers that must not contact the internet |
+| `restart_exporter` | `true` | After `gonix update`, restart the running Prometheus exporter (of every instance) so it runs the new version |
 
 ## `monitoring`
 

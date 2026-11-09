@@ -22,6 +22,8 @@ weight: 5
 
 - **Centralized SSL/TLS.** Hosts reference `/etc/nginx/certs/<domain>/{fullchain,privkey}.pem`, so renewing is replacing two files. RSA and ECDSA are detected automatically. See [SSL certificates]({{< relref "ssl" >}}).
 - **Certificate inspection.** Expiry (human-readable and exact), issuer, subject, SANs, SHA-256 fingerprint, key/certificate match and chain verification, using Go's `crypto/x509` with no `openssl` subprocess.
+- **GoNix's and Let's Encrypt's certificates, side by side.** The Certificates menu, the Add Host wizard and SSL Configuration list GoNix's own certificates and certbot's (`certificates.letsencrypt_dir`, default `/etc/letsencrypt`), each tagged `[GoNix]` or `[Let's Encrypt]`; a host's own custom certificate is kept and tagged `[Custom]`.
+- **Expiry warnings and certbot renewal.** A certificate with 14 days or less left is shown in red in the list, on the host's SSL line and on the main menu. When `certbot` is installed, a Let's Encrypt certificate can be renewed from its menu.
 - **Wildcard certificates.** Issue and renew `*.domain.com` with `certbot` and a Cloudflare DNS-01 challenge, fully automated from the TUI.
 
 ## Access control
@@ -51,6 +53,7 @@ weight: 5
 
 ## Safety and migration
 
+- **Updates.** The TUI says when a newer GoNix is released (a daily check, which can be switched off in Settings) and `gonix update` installs it from GitHub Releases: SHA-256 verified, the previous version kept, rollback with `--rollback`.
 - **Safety first.** Every change is backed up, written, tested with `nginx -t`, and reloaded only if the test passes. A failed test restores the previous configuration and logs the failure. Nginx is never left broken. See [Backups and history]({{< relref "backups-history" >}}).
 - **Configuration history.** Every successful change is a Git commit, kept outside `/etc/nginx`. Browse diffs and restore any earlier state.
 - **Export and import.** Move everything GoNix manages to another server in one archive. See [Migration]({{< relref "migration" >}}).

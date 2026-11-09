@@ -38,6 +38,27 @@ List what you have:
 sudo gonix cert list
 ```
 
+## GoNix's, Let's Encrypt's and custom certificates
+
+GoNix lists certificates from two places, and always says whose each one is:
+
+| Tag | Where it lives | Who renews it |
+|---|---|---|
+| `[GoNix]` | `certificates.directory` (default `/etc/nginx/certs`) | GoNix (wildcard flow below) |
+| `[Let's Encrypt]` | certbot's `live/` folder (`certificates.letsencrypt_dir`, default `/etc/letsencrypt`) | certbot |
+| `[Custom]` | any other path a host file already points at (for example an adopted host) | whoever put it there |
+
+The tag appears after the domain in the **Certificates** screen, in the certificate choice of **Add New Host**
+and **SSL Configuration**, and on the **SSL Configuration** line of a host (for example
+`[Let's Encrypt] 42d left`). Choosing a Let's Encrypt certificate points the host at certbot's own
+`live/<name>/` files, so certbot's renewals keep working with no copying. A custom certificate is offered as
+"kept as it is", so editing a host never silently swaps it for another one.
+
+{{< callout type="warning" >}}
+**Red means act.** A certificate that is expired, unreadable or has **14 days or less** left is shown in red
+with a ⚠ in the list, on the host's SSL line, and as a notice on the **main menu** naming each certificate.
+{{< /callout >}}
+
 ## Inspecting a certificate
 
 In the TUI's **Certificates** screen, **View Details** shows expiry (human-readable and exact), issuer,
@@ -107,6 +128,15 @@ Select a certificate in **Certificates** and choose **Renew Certificate (Certbot
   threshold, and renewing earlier only burns rate limits. You can still confirm, for example to test a DNS change.
 - On success it re-runs `nginx -t` and reloads Nginx. The path did not change, so hosts need no edit, only a
   re-read of the updated file.
+
+### Let's Encrypt certificates (certbot)
+
+When `certbot` is installed, selecting a `[Let's Encrypt]` certificate offers **Renew Certificate (certbot)**.
+It runs `certbot renew --cert-name <name>` with the output shown live, then tests and reloads Nginx. certbot
+skips a certificate that is not due, so a certificate with more than 30 days left first asks whether to force
+the renewal. If certbot is not found, the screen says so. The `[Let's Encrypt]` certificate is renewed with
+whatever settings it was issued with (nginx plugin, webroot, DNS, ...); GoNix does not ask for a Cloudflare
+token for it.
 
 {{< callout type="info" >}}
 **Using another way to get certificates?** Anything that puts `fullchain.pem` and `privkey.pem` in

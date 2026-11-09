@@ -29,11 +29,11 @@ func (s *accessListsScreen) reload() {
 	}
 	s.lists = lists
 	items := make([]menuItem, 0, len(lists)+1)
-	items = append(items, menuItem{title: "+ Create Access List"})
+	items = append(items, menuItem{title: "+ Create Access List", pinned: true})
 	for _, l := range lists {
 		items = append(items, menuItem{title: l.Name, desc: fmt.Sprintf("%d user(s)", len(l.Users))})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name or user")
 }
 
 func (s *accessListsScreen) Init() tea.Cmd { return nil }
@@ -47,6 +47,9 @@ func (s *accessListsScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
+			if s.menu.Selected() < 0 {
+				return s, nil
+			}
 			if s.menu.Selected() == 0 {
 				return s, navPush(newCreateAccessListWizard(s.deps))
 			}
@@ -64,7 +67,7 @@ func (s *accessListsScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

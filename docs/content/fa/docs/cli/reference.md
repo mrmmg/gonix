@@ -95,6 +95,7 @@ weight: 1
 
 | دستور | توضیح |
 |---|---|
+| `update [--check] [--rollback] [--yes]` | به‌روزرسانی GoNix از آخرین Release در GitHub: بررسی checksum، نگه‌داشتن نسخه‌ی قبلی با نام `gonix.old` و راه‌اندازی دوباره‌ی exporter مانیتورینگ |
 | `instances` | فهرست نمونه‌های پیکربندی‌شده‌ی Nginx |
 | `skill install [--project \| --dir DIR]` / `skill print` | [Skill عامل هوش مصنوعی]({{< relref "../ai-agents" >}}) |
 | `mcp` | سرور MCP روی stdio |

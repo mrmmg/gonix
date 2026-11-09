@@ -78,7 +78,7 @@ func (s *hostDetailScreen) rebuildMenu() {
 		{hdAliases, menuItem{title: "Domain Names", desc: aliasesDesc(s.host)}},
 		{hdAddPath, menuItem{title: "Add New Path"}},
 		{hdAddCustomPath, menuItem{title: "Add Custom Path"}},
-		{hdSSL, menuItem{title: "SSL Configuration"}},
+		{hdSSL, menuItem{title: "SSL Configuration", desc: sslDesc(s.deps, s.host)}},
 		{hdPresets, menuItem{title: "Presets", desc: presetsDesc(s.host)}},
 		{hdWebSocket, menuItem{title: "WebSocket Configuration"}},
 		{hdProxy, menuItem{title: "Proxy Configuration"}},
@@ -138,6 +138,27 @@ func (s *hostDetailScreen) selectAction(action int) bool {
 		}
 	}
 	return false
+}
+
+// sslDesc names the certificate a host uses, whose it is and how long it
+// has left, in red when that is little.
+func sslDesc(deps Deps, h nginx.ListedHost) string {
+	if !h.SSL.Enabled {
+		return mutedStyle.Render("(off)")
+	}
+	if h.SSL.CertFile == "" {
+		return mutedStyle.Render("(certificate set outside this file)")
+	}
+	source := certificates.SourceOf(h.SSL.CertFile, deps.Config.Certificates.Directory, deps.Config.Certificates.LetsEncryptDir)
+	desc := "[" + certificates.SourceName(source) + "]"
+	c := certificates.Parse(filepath.Base(filepath.Dir(h.SSL.CertFile)), filepath.Dir(h.SSL.CertFile), h.SSL.CertFile, h.SSL.KeyFile)
+	if c.ParseError != "" {
+		return desc + " " + dangerStyle.Render("unreadable")
+	}
+	if c.NeedsAttention() {
+		return desc + " " + dangerStyle.Render("⚠ "+c.Short())
+	}
+	return desc + " " + c.Short()
 }
 
 func redirectDesc(h nginx.ListedHost) string {
@@ -443,25 +464,17 @@ func newAddCustomPathWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 // --- SSL Configuration ---
 
 func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
-	certs, _ := certificates.Scan(deps.Config.Certificates.Directory)
-	certOptions := make([]string, 0, len(certs)+1)
-	// A certificate outside the certificates directory (e.g. certbot's in
-	// an adopted host) can be kept as it is.
-	current := ""
-	if h.SSL.Enabled && h.SSL.CertFile != "" && filepath.Dir(filepath.Dir(h.SSL.CertFile)) != filepath.Clean(deps.Config.Certificates.Directory) {
-		current = "keep current: " + h.SSL.CertFile
-		certOptions = append(certOptions, current)
-	}
-	for _, c := range certs {
-		certOptions = append(certOptions, c.Domain)
-	}
-	if len(certOptions) == 0 {
-		certOptions = []string{h.ServerName}
+	// A certificate outside both stores (e.g. an adopted host's own) is
+	// offered too, as a custom one that is kept as it is.
+	certs := newCertChoices(deps, h.SSL.CertFile, h.SSL.KeyFile)
+	if len(certs.Labels) == 0 {
+		certs.Labels = []string{"(no certificate found)"}
 	}
 
 	fields := []wizardField{
 		{Key: "enable", Label: "Enable SSL for this host?", Kind: fieldBool, BoolDefault: h.SSL.Enabled},
-		{Key: "cert", Label: "Certificate (from centralized certs directory):", Kind: fieldChoice, Options: certOptions,
+		{Key: "cert", Label: "Certificate (the tag says whose it is: GoNix's own, Let's Encrypt's, or custom):", Kind: fieldChoice,
+			Options: certs.Labels, ChoiceDefault: certs.Current,
 			ShowIf: func(v map[string]string) bool { return v["enable"] == "yes" }},
 		{Key: "http2", Label: "Enable HTTP/2?", Kind: fieldBool, BoolDefault: !h.SSL.Enabled || h.SSL.HTTP2,
 			ShowIf: func(v map[string]string) bool { return v["enable"] == "yes" }},
@@ -478,12 +491,12 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 			return newResultScreen(deps, "SSL Configuration", false, err.Error(), newHostDetailScreen(deps, h)), nil
 		}
 		if v["enable"] == "yes" {
-			cert := v["cert"]
-			certFile := filepath.Join(deps.Config.Certificates.Directory, cert, "fullchain.pem")
-			keyFile := filepath.Join(deps.Config.Certificates.Directory, cert, "privkey.pem")
-			if current != "" && cert == current {
-				certFile, keyFile = host.SSL.CertFile, host.SSL.KeyFile
+			ch, ok := certs.By[v["cert"]]
+			if !ok {
+				return newResultScreen(deps, "SSL Configuration", false,
+					"There is no certificate to use. Get one from the Certificates menu first.", newHostDetailScreen(deps, h)), nil
 			}
+			certFile, keyFile := ch.CertFile, ch.KeyFile
 			host.SSL = nginx.SSLConfig{
 				Enabled:    true,
 				CertFile:   certFile,
@@ -503,7 +516,7 @@ func newSSLWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 			return newResultScreen(deps, "SSL Configuration", false, err.Error(), newHostDetailScreen(deps, h)), nil
 		}
 		return newResultScreen(deps, "SSL Configuration", true, "SSL configuration updated.", newHostDetailScreen(deps, h)), nil
-	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil })
+	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil }).withReview(sslConfigSummary(h, certs))
 }
 
 // --- Proxy Configuration (edits the "/" location) ---
@@ -603,7 +616,7 @@ func newRedirectWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 		return newResultScreen(deps, "Redirect Configuration", true,
 			fmt.Sprintf("Requests to %s now redirect to %s.", host.ServerName, host.Redirect.ReturnURL()),
 			newHostDetailScreen(deps, h)), nil
-	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil })
+	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil }).withReview(redirectConfigSummary(h))
 }
 
 // --- Domain Names (server_name aliases) ---
@@ -633,5 +646,5 @@ func newAliasesWizard(deps Deps, h nginx.ListedHost) *wizardScreen {
 			return newResultScreen(deps, "Domain Names", false, err.Error(), newHostDetailScreen(deps, h)), nil
 		}
 		return newResultScreen(deps, "Domain Names", true, "Domain names updated.", newHostDetailScreen(deps, h)), nil
-	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil })
+	}, func() (screen, tea.Cmd) { return newHostDetailScreen(deps, h), nil }).withReview(aliasesSummary(h))
 }

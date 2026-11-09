@@ -34,9 +34,9 @@ func newStreamsScreen(deps Deps) *streamsScreen {
 	var items []menuItem
 	if !s.ready && deps.Streams.CanSetUp() {
 		s.setup = true
-		items = append(items, menuItem{title: "Set Up Stream Support", desc: "create the stream { } block in " + deps.Streams.WrapperPath()})
+		items = append(items, menuItem{title: "Set Up Stream Support", desc: "create the stream { } block in " + deps.Streams.WrapperPath(), pinned: true})
 	}
-	items = append(items, menuItem{title: "+ Create Stream Proxy"})
+	items = append(items, menuItem{title: "+ Create Stream Proxy", pinned: true})
 	for _, p := range proxies {
 		dot := enabledDot
 		if !p.Enabled {
@@ -44,7 +44,7 @@ func newStreamsScreen(deps Deps) *streamsScreen {
 		}
 		items = append(items, menuItem{title: dot + " " + p.Name, desc: fmt.Sprintf("%s %d → %s", p.Protocol(), p.Port, p.Upstream)})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name, protocol, port or upstream")
 	return s
 }
 
@@ -60,6 +60,9 @@ func (s *streamsScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 			return s, navPop()
 		case "enter":
 			i := s.menu.Selected()
+			if i < 0 {
+				return s, nil
+			}
 			if s.setup {
 				if i == 0 {
 					if err := s.deps.Streams.SetUp(backgroundCtx()); err != nil {
@@ -89,7 +92,7 @@ func (s *streamsScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 
