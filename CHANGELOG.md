@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-11-09
+
+### Fixed
+
+- **ci:** Publish the per-file .sha256 checksums with each release ([079c684](https://github.com/mrmmg/gonix/commit/079c684823d97e6ad3fd778cbef5699f3816f22d))
+
 ## [2.3.1] - 2026-11-09
 
 ### Fixed
@@ -162,6 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add go run instructions for local dev and more test examples ([508133a](https://github.com/mrmmg/gonix/commit/508133ac6fd490f09c6b8c0e38899861dde02455))
 - Mention both installers in default config header comment ([248bc15](https://github.com/mrmmg/gonix/commit/248bc158dc2379d2dacc8699782e1e67a6cc2f77))
 
+[2.3.2]: https://github.com/mrmmg/gonix/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/mrmmg/gonix/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/mrmmg/gonix/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/mrmmg/gonix/compare/v2.1.0...v2.2.0
