@@ -110,6 +110,8 @@ jobs:
           files: |
             dist/gonix-linux-amd64
             dist/gonix-linux-arm64
+            dist/gonix-linux-amd64.sha256
+            dist/gonix-linux-arm64.sha256
             dist/checksums.txt
             dist/gonix.yaml
 
