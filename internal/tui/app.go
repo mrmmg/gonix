@@ -117,7 +117,11 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	newTop, cmd := m.top().Update(msg)
-	m.stack[len(m.stack)-1] = newTop
+	// A screen that returns nil is asking to be left as it is (a cancel that
+	// only pops itself): keep it, so the next View still has a screen.
+	if newTop != nil {
+		m.stack[len(m.stack)-1] = newTop
+	}
 	return m, cmd
 }
 
