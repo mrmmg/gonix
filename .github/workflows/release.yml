@@ -112,3 +112,50 @@ jobs:
             dist/gonix-linux-arm64
             dist/checksums.txt
             dist/gonix.yaml
+
+  changelog:
+    name: Update CHANGELOG.md on main
+    needs: release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: changelog
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Commit CHANGELOG.md to main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          cp CHANGELOG.md "$RUNNER_TEMP/CHANGELOG.md"
+          git fetch origin main
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "$TAG is not on main; leaving CHANGELOG.md alone."
+            exit 0
+          fi
+
+          git checkout -f -B main origin/main
+          cp "$RUNNER_TEMP/CHANGELOG.md" CHANGELOG.md
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG.md is already up to date."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore(release): update changelog for ${TAG} [skip ci]"
+          git push origin main
