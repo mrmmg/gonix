@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-11-09
+
+### Fixed
+
+- **tui:** Do not crash when Esc cancels the Add New Host wizard ([76179fa](https://github.com/mrmmg/gonix/commit/76179faeba57c5b7915d7a015008f1fd9030920d))
+
 ## [2.3.0] - 2026-11-09
 
 ### Added
@@ -156,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add go run instructions for local dev and more test examples ([508133a](https://github.com/mrmmg/gonix/commit/508133ac6fd490f09c6b8c0e38899861dde02455))
 - Mention both installers in default config header comment ([248bc15](https://github.com/mrmmg/gonix/commit/248bc158dc2379d2dacc8699782e1e67a6cc2f77))
 
+[2.3.1]: https://github.com/mrmmg/gonix/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/mrmmg/gonix/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/mrmmg/gonix/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/mrmmg/gonix/compare/v2.0.0...v2.1.0
