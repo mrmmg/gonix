@@ -101,6 +101,7 @@ Common `host add` / `host set` flags:
 
 | Command | Description |
 |---|---|
+| `update [--check] [--rollback] [--yes]` | Update GoNix from its latest GitHub release: checksum verified, the previous version kept as `gonix.old`, the monitoring exporter restarted (see `update` in the [configuration]({{< relref "../configuration" >}})) |
 | `instances` | List the configured Nginx instances |
 | `skill install [--project \| --dir DIR]` / `skill print` | [AI agent skill]({{< relref "../ai-agents" >}}) |
 | `mcp` | MCP server on stdio |

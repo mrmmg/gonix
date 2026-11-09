@@ -38,6 +38,11 @@ Run the installer again, with or without a version. It replaces the binary and t
 installed before. It **never touches** `/etc/gonix`, so your configuration, backups and access lists
 survive every upgrade.
 
+Or update from GoNix itself: `sudo gonix update` reads the latest release from GitHub, verifies its
+SHA-256 checksum, keeps the current version as `gonix.old` and replaces the binary (`--rollback` puts the
+previous one back; `gonix update --check` only looks). The **Updates** menu in the TUI says when a newer
+release exists and shows this command. GoNix never updates from anywhere but this project's GitHub Releases.
+
 ## What gets installed, and where
 
 | Path                       | Purpose                                                        |
