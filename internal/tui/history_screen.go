@@ -19,7 +19,7 @@ type historyScreen struct {
 }
 
 func newHistoryScreen(deps Deps) *historyScreen {
-	s := &historyScreen{deps: deps, menu: newSimpleMenu(nil)}
+	s := &historyScreen{deps: deps, menu: newSearchMenu(nil, "message, date or commit")}
 	if deps.History == nil {
 		s.err = "Configuration history is disabled. Install git and set history.enabled: true in /etc/gonix/gonix.yaml."
 		return s
@@ -43,10 +43,11 @@ func newHistoryScreen(deps Deps) *historyScreen {
 func (s *historyScreen) Init() tea.Cmd { return nil }
 
 func (s *historyScreen) selected() (history.Commit, bool) {
-	if len(s.commits) == 0 {
+	i := s.menu.Selected()
+	if len(s.commits) == 0 || i < 0 || i >= len(s.commits) {
 		return history.Commit{}, false
 	}
-	return s.commits[s.menu.Selected()], true
+	return s.commits[i], true
 }
 
 func (s *historyScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
@@ -117,6 +118,6 @@ func (s *historyScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Show diff"}, {"r", "Restore"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Show diff"}, {"r", "Restore"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }

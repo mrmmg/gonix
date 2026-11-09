@@ -26,11 +26,15 @@ func newUpstreamsScreen(deps Deps) *upstreamsScreen {
 		s.err = err.Error()
 	}
 	s.groups = groups
-	items := []menuItem{{title: "+ Create Upstream Group"}}
+	items := []menuItem{{title: "+ Create Upstream Group", pinned: true}}
 	for _, g := range groups {
-		items = append(items, menuItem{title: g.Name, desc: fmt.Sprintf("%s, %d servers", g.Method, len(g.Servers))})
+		var addrs []string
+		for _, sv := range g.Servers {
+			addrs = append(addrs, sv.Address)
+		}
+		items = append(items, menuItem{title: g.Name, desc: fmt.Sprintf("%s, %d servers", g.Method, len(g.Servers)), search: strings.Join(addrs, " ")})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name, method or server")
 	return s
 }
 
@@ -45,6 +49,9 @@ func (s *upstreamsScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
+			if s.menu.Selected() < 0 {
+				return s, nil
+			}
 			if s.menu.Selected() == 0 {
 				return s, navPush(newUpstreamWizard(s.deps, nil))
 			}
@@ -62,7 +69,7 @@ func (s *upstreamsScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

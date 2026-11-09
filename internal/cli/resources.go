@@ -669,7 +669,7 @@ func errorPagesList(e *env, args []string) error {
 
 func certList(e *env, args []string) error {
 	fs := flag.NewFlagSet("cert list", flag.ContinueOnError)
-	le := fs.String("letsencrypt", certificates.DefaultLetsEncryptDir, "certbot's directory, whose certificates are listed too (none to skip)")
+	le := fs.String("letsencrypt", e.svc.Config.Certificates.LetsEncryptDir, "certbot's directory, whose certificates are listed too (none to skip)")
 	if _, err := parseFlags(fs, args); err != nil {
 		return err
 	}

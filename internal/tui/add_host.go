@@ -7,7 +7,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/mrmmg/gonix/internal/certificates"
 	"github.com/mrmmg/gonix/internal/hosts"
 	"github.com/mrmmg/gonix/internal/nginx"
 )
@@ -104,15 +103,11 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 
 	// The certificate choice step is appended dynamically below because its
 	// options depend on what's actually present on disk.
-	certs, _ := certificates.Scan(deps.Config.Certificates.Directory)
-	if len(certs) > 0 {
-		opts := make([]string, len(certs))
-		for i, c := range certs {
-			opts[i] = c.Domain
-		}
+	certs := newCertChoices(deps, "", "")
+	if len(certs.Labels) > 0 {
 		fields = append(fields, wizardField{
-			Key: "ssl_cert", Label: "Certificate (from /etc/nginx/certs):", Kind: fieldChoice,
-			Options: opts,
+			Key: "ssl_cert", Label: "Certificate (the tag says whose it is: GoNix's own or Let's Encrypt's):", Kind: fieldChoice,
+			Options: certs.Labels,
 			ShowIf:  func(v map[string]string) bool { return v["ssl_enable"] == "yes" },
 		})
 	}
@@ -143,8 +138,8 @@ func newAddHostWizard(deps Deps) *wizardScreen {
 	}
 
 	return newWizard("Add New Host", fields, func(values map[string]string) (screen, tea.Cmd) {
-		return finishAddHost(deps, values)
-	}, func() (screen, tea.Cmd) { return nil, navPop() })
+		return finishAddHost(deps, values, certs)
+	}, func() (screen, tea.Cmd) { return nil, navPop() }).withReview(addHostSummary(certs))
 }
 
 // Host mode choices offered by the Add New Host wizard.
@@ -230,7 +225,7 @@ func validatePort(v string) error {
 	return nil
 }
 
-func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
+func finishAddHost(deps Deps, v map[string]string, certs certChoices) (screen, tea.Cmd) {
 	h := nginx.Host{
 		ServerName: v["domain"],
 		Listen:     deps.Config.Nginx.HTTPPort,
@@ -281,12 +276,13 @@ func finishAddHost(deps Deps, v map[string]string) (screen, tea.Cmd) {
 		h.SSL.HTTP2 = v["ssl_http2"] == "yes"
 		h.SSL.HTTP3 = v["ssl_http3"] == "yes"
 		h.SSL.ForceHTTPS = v["ssl_force"] == "yes"
-		certName := v["ssl_cert"]
-		if certName == "" {
-			certName = v["domain"]
+		if ch, ok := certs.By[v["ssl_cert"]]; ok {
+			h.SSL.CertFile, h.SSL.KeyFile = ch.CertFile, ch.KeyFile
+		} else {
+			// No certificate exists yet: point at where GoNix keeps one.
+			h.SSL.CertFile = deps.Config.Certificates.Directory + "/" + v["domain"] + "/fullchain.pem"
+			h.SSL.KeyFile = deps.Config.Certificates.Directory + "/" + v["domain"] + "/privkey.pem"
 		}
-		h.SSL.CertFile = deps.Config.Certificates.Directory + "/" + certName + "/fullchain.pem"
-		h.SSL.KeyFile = deps.Config.Certificates.Directory + "/" + certName + "/privkey.pem"
 	}
 
 	if sn := v["error_pages"]; sn != "" && sn != "(none)" {

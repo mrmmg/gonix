@@ -26,11 +26,11 @@ func newRateLimitsScreen(deps Deps) *rateLimitsScreen {
 		s.err = err.Error()
 	}
 	s.limits = limits
-	items := []menuItem{{title: "+ Create Rate Limit"}}
+	items := []menuItem{{title: "+ Create Rate Limit", pinned: true}}
 	for _, l := range limits {
 		items = append(items, menuItem{title: l.Name, desc: l.Describe()})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name or limit")
 	return s
 }
 
@@ -45,6 +45,9 @@ func (s *rateLimitsScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
+			if s.menu.Selected() < 0 {
+				return s, nil
+			}
 			if s.menu.Selected() == 0 {
 				return s, navPush(newRateLimitWizard(s.deps, nil))
 			}
@@ -62,7 +65,7 @@ func (s *rateLimitsScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

@@ -4,7 +4,11 @@
 // internal/accesslist, internal/certificates and internal/system.
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
 	colorPrimary   = lipgloss.Color("39")  // blue
@@ -52,6 +56,7 @@ var (
 	successStyle = lipgloss.NewStyle().Foreground(colorSuccess).Bold(true)
 	warningStyle = lipgloss.NewStyle().Foreground(colorWarning).Bold(true)
 	dangerStyle  = lipgloss.NewStyle().Foreground(colorDanger).Bold(true)
+	infoStyle    = lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
 
 	enabledDot  = successStyle.Render("●")
 	disabledDot = mutedStyle.Render("○")
@@ -95,4 +100,21 @@ func renderHelp(pairs [][2]string) string {
 		out += helpKeyStyle.Render(p[0]) + " " + helpDescStyle.Render(p[1])
 	}
 	return statusBarStyle.Render(out)
+}
+
+// selectedRowStyle marks the chosen row of a list. It uses the terminal's
+// own palette colours (ANSI 4 and 15, not fixed RGB values), so it follows
+// whatever theme the terminal has.
+var selectedRowStyle = lipgloss.NewStyle().Bold(true).
+	Background(lipgloss.Color("4")).Foreground(lipgloss.Color("15"))
+
+// renderSelected draws text as the chosen row, padded to width so that rows
+// of a list highlight to the same edge. Colours inside text end with a reset
+// that would cut the highlight short, so it is switched on again after each.
+func renderSelected(text string, width int) string {
+	if pad := width - lipgloss.Width(text); pad > 0 {
+		text += strings.Repeat(" ", pad)
+	}
+	on, _, _ := strings.Cut(selectedRowStyle.Render("X"), "X")
+	return selectedRowStyle.Render(strings.ReplaceAll(text, "\x1b[0m", "\x1b[0m"+on))
 }

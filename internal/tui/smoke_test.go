@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mrmmg/gonix/internal/accesslist"
 	"github.com/mrmmg/gonix/internal/audit"
@@ -36,6 +37,8 @@ func testDeps(t *testing.T) Deps {
 	cfg.Nginx.SitesAvailable = t.TempDir()
 	cfg.Nginx.SitesEnabled = t.TempDir()
 	cfg.Certificates.Directory = t.TempDir()
+	cfg.Update.Check = false // tests never contact GitHub
+	cfg.Logs.AuditFile = t.TempDir() + "/audit.log"
 	cfg.AccessLists.Directory = t.TempDir()
 	cfg.Backup.Directory = t.TempDir()
 	cfg.ErrorPages.SnippetsDirectory = t.TempDir()
@@ -182,7 +185,7 @@ func TestLongMenusFitSmallTerminals(t *testing.T) {
 			if lines := strings.Count(view, "\n") + 1; lines > 24 {
 				t.Errorf("%s with cursor %d renders %d lines on a 24-line terminal", s.name, cursor, lines)
 			}
-			if !strings.Contains(view, "▸ "+strings.TrimSpace(s.menu.items[cursor].title)) {
+			if !strings.Contains(ansi.Strip(view), strings.TrimSpace(s.menu.items[cursor].title)) {
 				t.Errorf("%s: selected item %q not visible", s.name, s.menu.items[cursor].title)
 			}
 		}

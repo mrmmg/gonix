@@ -49,6 +49,10 @@ func TestAddHostWizardCreatesRedirectHost(t *testing.T) {
 	model = pressEnter(t, model) // 301
 	model = pressEnter(t, model) // keep path: yes (default)
 	model = pressEnter(t, model) // SSL: no (default)
+	if w, ok := root.stack[len(root.stack)-1].(*wizardScreen); !ok || !w.reviewing {
+		t.Fatalf("expected the review step, got %T", root.stack[len(root.stack)-1])
+	}
+	model = pressEnter(t, model) // apply
 
 	if _, ok := root.stack[len(root.stack)-1].(*resultScreen); !ok {
 		t.Fatalf("expected a result screen after the wizard, got %T", root.stack[len(root.stack)-1])

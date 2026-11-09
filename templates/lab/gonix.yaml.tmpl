@@ -15,6 +15,7 @@ nginx:
   https_port: {{ .HTTPSPort }}
 certificates:
   directory: {{ .Dir }}/certs
+  letsencrypt_dir: {{ .Dir }}/letsencrypt
 logs:
   nginx_directory: {{ .Dir }}/logs
   audit_file: {{ .Dir }}/audit.log

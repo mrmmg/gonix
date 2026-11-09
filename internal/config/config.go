@@ -38,6 +38,7 @@ type Config struct {
 	GeoIP        GeoIPConfig        `yaml:"geoip"`
 	History      HistoryConfig      `yaml:"history"`
 	Monitoring   MonitoringConfig   `yaml:"monitoring"`
+	Update       UpdateConfig       `yaml:"update"`
 }
 
 type HistoryConfig struct {
@@ -84,6 +85,10 @@ type NginxConfig struct {
 
 type CertificatesConfig struct {
 	Directory string `yaml:"directory"`
+	// LetsEncryptDir is certbot's configuration directory. Its live
+	// certificates are listed next to GoNix's own, and renewed with certbot
+	// when it is installed.
+	LetsEncryptDir string `yaml:"letsencrypt_dir"`
 }
 
 type LogsConfig struct {
@@ -130,7 +135,8 @@ func Default() *Config {
 			HTTPSPort:       443,
 		},
 		Certificates: CertificatesConfig{
-			Directory: "/etc/nginx/certs",
+			Directory:      "/etc/nginx/certs",
+			LetsEncryptDir: "/etc/letsencrypt",
 		},
 		Logs: LogsConfig{
 			NginxDirectory: "/var/log/nginx",
@@ -154,6 +160,7 @@ func Default() *Config {
 			Enabled: true,
 			GitDir:  "/etc/gonix/history.git",
 		},
+		Update: UpdateConfig{Check: true, RestartExporter: true},
 		Monitoring: MonitoringConfig{
 			Listen:     "127.0.0.1:9113",
 			CacheTTL:   30 * time.Second,
@@ -277,6 +284,18 @@ type MonitoringConfig struct {
 	StubStatus StubStatusConfig `yaml:"stub_status"`
 }
 
+// UpdateConfig controls how GoNix learns about, and applies, new releases.
+// The source is always this project's GitHub Releases.
+type UpdateConfig struct {
+	// Check makes GoNix ask GitHub, at most once a day, whether a newer
+	// release exists and say so in the main menu. Turn it off on servers
+	// that must not contact the internet.
+	Check bool `yaml:"check"`
+	// RestartExporter restarts the running Prometheus exporter (of every
+	// instance) after `gonix update`, so it runs the new version.
+	RestartExporter bool `yaml:"restart_exporter"`
+}
+
 // StubStatusConfig is a local-only Nginx server exposing stub_status.
 type StubStatusConfig struct {
 	Enabled bool   `yaml:"enabled"`
@@ -321,7 +340,14 @@ func (m MonitoringConfig) Validate() error {
 
 // SaveMonitoring replaces only the monitoring section of the file at path,
 // leaving the rest of it (and its comments) as it was.
-func SaveMonitoring(path string, m MonitoringConfig) error {
+func SaveMonitoring(path string, m MonitoringConfig) error { return SaveSection(path, "monitoring", m) }
+
+// SaveUpdate replaces only the update section of the file at path.
+func SaveUpdate(path string, u UpdateConfig) error { return SaveSection(path, "update", u) }
+
+// SaveSection replaces the top-level section key of the YAML file at path
+// with v, leaving the rest of the file (and its comments) as it was.
+func SaveSection(path, key string, m any) error {
 	var doc yaml.Node
 	if data, err := os.ReadFile(path); err == nil {
 		if err := yaml.Unmarshal(data, &doc); err != nil {
@@ -343,12 +369,12 @@ func SaveMonitoring(path string, m MonitoringConfig) error {
 	}
 	replaced := false
 	for i := 0; i+1 < len(root.Content); i += 2 {
-		if root.Content[i].Value == "monitoring" {
+		if root.Content[i].Value == key {
 			root.Content[i+1], replaced = &node, true
 		}
 	}
 	if !replaced {
-		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: "monitoring"}, &node)
+		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: key}, &node)
 	}
 	data, err := yaml.Marshal(&doc)
 	if err != nil {

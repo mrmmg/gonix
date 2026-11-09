@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,7 +22,7 @@ type hostsListScreen struct {
 }
 
 func newHostsListScreen(deps Deps) *hostsListScreen {
-	s := &hostsListScreen{deps: deps, menu: newSimpleMenu(nil)}
+	s := &hostsListScreen{deps: deps, menu: newSearchMenu(nil, "domain, alias or backend")}
 	s.reload()
 	return s
 }
@@ -68,8 +69,9 @@ func (s *hostsListScreen) reload() {
 			managed += mutedStyle.Render(" → " + h.Redirect.Target)
 		}
 		items = append(items, menuItem{
-			title: fmt.Sprintf("%s %-30s", dot, h.ServerName),
-			desc:  fmt.Sprintf("%-6s %s%s", proto, state, managed),
+			title:  fmt.Sprintf("%s %-30s", dot, h.ServerName),
+			desc:   fmt.Sprintf("%-6s %s%s", proto, state, managed),
+			search: strings.Join(h.ServerAlias, " ") + " " + h.FileName + " " + h.Redirect.Target + " " + strings.Join(health.Upstreams(h.Host), " "),
 		})
 	}
 	if len(items) == 0 {
@@ -88,10 +90,11 @@ func (s *hostsListScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "enter":
-			if len(s.hosts) == 0 {
+			sel := s.menu.Selected()
+			if len(s.hosts) == 0 || sel < 0 || sel >= len(s.hosts) {
 				return s, nil
 			}
-			h := s.hosts[s.menu.Selected()]
+			h := s.hosts[sel]
 			return s, navPush(newHostDetailScreen(s.deps, h))
 		case "esc", "q":
 			return s, navPop()
@@ -110,7 +113,7 @@ func (s *hostsListScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Manage"}, {"r", "Refresh"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Manage"}, {"r", "Refresh"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

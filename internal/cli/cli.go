@@ -46,9 +46,11 @@ func usageErr(format string, args ...any) error {
 // env is what a command runs with.
 type env struct {
 	Options
-	out  io.Writer
-	svc  *app.Services
-	plan *snippet.Plan
+	out io.Writer
+	svc *app.Services
+	// cfgPath is the configuration file this run uses.
+	cfgPath string
+	plan    *snippet.Plan
 }
 
 // command is one leaf of the command tree.
@@ -156,6 +158,15 @@ func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig s
 	if cmd.run == nil {
 		return fail(fmt.Errorf("not implemented"))
 	}
+	e.cfgPath = opts.Config
+	if opts.Instance != "" {
+		if p, err := config.InstancePath(opts.Instance); err == nil {
+			e.cfgPath = p
+		}
+	}
+	if e.cfgPath == "" {
+		e.cfgPath = defaultConfig
+	}
 	if needsServices(cmd) {
 		if RequireRoot && os.Geteuid() != 0 {
 			return fail(fmt.Errorf("this command requires root privileges; run it with sudo"))
@@ -191,7 +202,7 @@ func Run(args []string, stdout, stderr io.Writer, build Builder, defaultConfig s
 
 // needsServices is false for commands that work without a configuration.
 func needsServices(c command) bool {
-	return !strings.HasPrefix(c.path, "skill") && c.path != "instances" && c.path != "mcp" && c.path != "exporter dashboard"
+	return !strings.HasPrefix(c.path, "skill") && c.path != "instances" && c.path != "update" && c.path != "mcp" && c.path != "exporter dashboard"
 }
 
 // done reports a successful write: the plan in dry-run mode, else msg.

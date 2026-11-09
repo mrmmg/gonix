@@ -41,11 +41,11 @@ func (s *confirmScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 
 func (s *confirmScreen) View(width, height int) string {
 	body := headerStyle.Render(s.title) + "\n\n" + s.message + "\n\n"
-	no, yes := "  No", "  Yes"
+	no, yes := "  No  ", "  Yes  "
 	if s.cursor == 0 {
-		no = selectedItemStyle.Render("▸ No")
+		no = renderSelected("  No  ", 0)
 	} else {
-		yes = selectedItemStyle.Render("▸ Yes")
+		yes = renderSelected("  Yes  ", 0)
 	}
 	body += no + "    " + yes
 	help := [][2]string{{"y/n", "Confirm"}, {"Enter", "Select"}, {"Esc", "Cancel"}}

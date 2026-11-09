@@ -13,6 +13,11 @@ func topScreen(root *rootModel) screen { return root.stack[len(root.stack)-1] }
 
 func requireOKResult(t *testing.T, root *rootModel) {
 	t.Helper()
+	// A wizard ends with a review, which a person confirms with Enter.
+	if w, ok := topScreen(root).(*wizardScreen); ok && w.reviewing {
+		var model tea.Model = root
+		pressEnter(t, model)
+	}
 	rs, ok := topScreen(root).(*resultScreen)
 	if !ok {
 		t.Fatalf("expected a result screen, got %T", topScreen(root))

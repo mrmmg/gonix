@@ -31,7 +31,7 @@ func (s *errorPagesScreen) reload() {
 	}
 	s.snippets = snippets
 	items := make([]menuItem, 0, len(snippets)+1)
-	items = append(items, menuItem{title: "+ Create Error Pages Snippet"})
+	items = append(items, menuItem{title: "+ Create Error Pages Snippet", pinned: true})
 	for _, sn := range snippets {
 		target := sn.Directory
 		if sn.IsTemplate() {
@@ -39,7 +39,7 @@ func (s *errorPagesScreen) reload() {
 		}
 		items = append(items, menuItem{title: sn.Name, desc: "codes " + errorpages.FormatCodes(sn.Codes) + " → " + target})
 	}
-	s.menu = newSimpleMenu(items)
+	s.menu = newSearchMenu(items, "name or error code")
 }
 
 func (s *errorPagesScreen) Init() tea.Cmd { return nil }
@@ -53,6 +53,9 @@ func (s *errorPagesScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 		case "esc", "q":
 			return s, navPop()
 		case "enter":
+			if s.menu.Selected() < 0 {
+				return s, nil
+			}
 			if s.menu.Selected() == 0 {
 				return s, navPush(newErrorPagesWizard(s.deps, nil))
 			}
@@ -71,7 +74,7 @@ func (s *errorPagesScreen) View(width, height int) string {
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

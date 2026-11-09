@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/mrmmg/gonix/internal/certificates"
 )
@@ -22,24 +23,51 @@ func newCertificatesScreen(deps Deps) *certificatesScreen {
 	return s
 }
 
-func (s *certificatesScreen) reload() {
-	certs, err := certificates.Scan(s.deps.Config.Certificates.Directory)
-	if err != nil {
-		s.err = err.Error()
-		return
+// sourceTag is the fixed-width, coloured tag that says whose a certificate
+// is, so GoNix's own and Let's Encrypt's can never be mistaken for each other.
+func sourceTag(c certificates.Certificate) string {
+	tag := fmt.Sprintf("%-15s", "["+c.SourceLabel()+"]")
+	if c.Source == certificates.SourceCertbot {
+		return certbotTagStyle.Render(tag)
 	}
-	s.certs = certs
-	items := []menuItem{
-		{title: "+ Get Wildcard Certificate (Certbot)", desc: "Automates certbot + Cloudflare DNS-01"},
-	}
-	for _, c := range certs {
-		items = append(items, menuItem{title: statusBadge(c.Status) + " " + c.Domain, desc: string(c.KeyType) + "  " + c.RemainingHuman()})
-	}
-	if len(certs) == 0 {
-		items = append(items, menuItem{title: "(no certificates found in " + s.deps.Config.Certificates.Directory + ")"})
-	}
-	s.menu = newSimpleMenu(items)
+	return gonixTagStyle.Render(tag)
 }
+
+// remainingText is the time left, in red when it is 14 days or less.
+func remainingText(c certificates.Certificate) string {
+	if c.NeedsAttention() {
+		return dangerStyle.Render("⚠ " + c.Short())
+	}
+	return c.Short()
+}
+
+func (s *certificatesScreen) reload() {
+	s.certs = allCerts(s.deps)
+	items := []menuItem{
+		{title: "+ Get Wildcard Certificate (Certbot)", desc: "Automates certbot + Cloudflare DNS-01", pinned: true},
+	}
+	w := certNameWidth(s.certs)
+	for _, c := range s.certs {
+		items = append(items, menuItem{
+			title:  statusBadge(c.Status) + " " + fmt.Sprintf("%-*s", w, c.Domain) + "  " + sourceTag(c),
+			desc:   string(c.KeyType) + "  " + remainingText(c),
+			search: strings.Join(c.SANs, " ") + " " + c.SourceLabel() + " " + c.Source + " " + c.Issuer,
+		})
+	}
+	if len(s.certs) == 0 {
+		items = append(items, menuItem{title: "(no certificates found in " + s.deps.Config.Certificates.Directory + " or " + s.deps.Config.Certificates.LetsEncryptDir + "/live)"})
+	}
+	if s.menu == nil {
+		s.menu = newSearchMenu(items, "domain, name, source or issuer")
+	} else {
+		s.menu.SetItems(items)
+	}
+}
+
+var (
+	gonixTagStyle   = lipgloss.NewStyle().Foreground(colorPrimary).Bold(true)
+	certbotTagStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("141")).Bold(true)
+)
 
 func statusBadge(st certificates.Status) string {
 	switch st {
@@ -68,6 +96,9 @@ func (s *certificatesScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 			s.reload()
 		case "enter":
 			idx := s.menu.Selected()
+			if idx < 0 {
+				return s, nil
+			}
 			if idx == 0 {
 				return newWildcardCertWizard(s.deps), nil
 			}
@@ -85,6 +116,18 @@ func (s *certificatesScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 func renderCertDetail(c certificates.Certificate) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Domain:              %s\n", c.Domain)
+	fmt.Fprintf(&b, "Source:              %s\n", c.SourceLabel())
+	if c.Source == certificates.SourceCertbot {
+		if l, ok := certificates.CertbotLineage(c.CertPath); ok {
+			auth := l.Authenticator
+			if auth == "" {
+				auth = "unknown"
+			}
+			fmt.Fprintf(&b, "Renewed by:          certbot (authenticator: %s), settings in %s\n", auth, l.RenewalFile)
+		}
+	} else {
+		fmt.Fprintf(&b, "Renewed by:          GoNix (certbot + Cloudflare DNS-01)\n")
+	}
 	fmt.Fprintf(&b, "Status:              %s\n", c.Status)
 	fmt.Fprintf(&b, "Key Type:            %s\n", c.KeyType)
 	fmt.Fprintf(&b, "Expires (exact):     %s\n", c.ExpiresAtExact())
@@ -109,11 +152,20 @@ func renderCertDetail(c certificates.Certificate) string {
 
 func (s *certificatesScreen) View(width, height int) string {
 	body := headerStyle.Render("Certificates") + "\n"
+	if n := len(certificates.Attention(s.certs)); n > 0 {
+		body += callout(width-4, calloutDanger, fmt.Sprintf("%d certificate(s) expired or expiring within %d days — shown in red below",
+			n, int(certificates.AttentionWindow.Hours()/24)), nil) + "\n"
+	}
+	if _, ok := certificates.CertbotPath(); ok {
+		body += mutedStyle.Render("certbot found: Let's Encrypt certificates can be renewed from here") + "\n"
+	} else {
+		body += mutedStyle.Render("certbot not found: Let's Encrypt certificates cannot be renewed from here") + "\n"
+	}
 	if s.err != "" {
 		body += errorBoxStyle.Render(s.err)
 	} else {
 		body += s.menu.ViewFit(body, height)
 	}
-	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Details"}, {"r", "Refresh"}, {"Esc", "Back"}}
+	help := searchHelp(s.menu, [][2]string{{"↑↓", "Navigate"}, {"Enter", "Details"}, {"r", "Refresh"}, {"Esc", "Back"}})
 	return renderFrame(width, height, "GONIX", body, help)
 }

@@ -2,10 +2,15 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// choiceSearchMin is how many options a choice question needs before it
+// offers search.
+const choiceSearchMin = 6
 
 // fieldKind identifies how a wizardField is presented and edited.
 type fieldKind int
@@ -47,16 +52,59 @@ type wizardScreen struct {
 	values map[string]string
 
 	input      textinput.Model
-	boolCursor int // 0 = No, 1 = Yes
-	choiceIdx  int
+	boolCursor int         // 0 = No, 1 = Yes
+	menu       *simpleMenu // the options of a choice question
 	errMsg     string
 
 	onDone   func(values map[string]string) (screen, tea.Cmd)
 	onCancel func() (screen, tea.Cmd)
+
+	// path is the steps answered so far, so going back also works across
+	// steps that were skipped.
+	path []int
+	// review, when set, shows what is about to change (in words, one line
+	// each) after the last question and waits for a confirmation.
+	review    func(values map[string]string) []string
+	reviewing bool
+}
+
+// answersReview is the review of a wizard that has no summary of its own: the
+// questions that were asked, each with its answer (secrets hidden).
+func (w *wizardScreen) answersReview(values map[string]string) []string {
+	var out []string
+	for _, f := range w.fields {
+		if f.ShowIf != nil && !f.ShowIf(values) {
+			continue
+		}
+		v, ok := values[f.Key]
+		if !ok {
+			continue
+		}
+		switch {
+		case f.Sensitive:
+			v = "••••••••"
+		case f.Kind == fieldBool && v == "yes":
+			v = "Yes"
+		case f.Kind == fieldBool:
+			v = "No"
+		case v == "":
+			v = "(empty)"
+		}
+		out = append(out, strings.TrimSuffix(strings.TrimSpace(f.Label), ":")+" → "+v)
+	}
+	return out
+}
+
+// withReview makes the wizard end with a plain-language summary of the
+// change, which must be confirmed before anything is applied.
+func (w *wizardScreen) withReview(f func(values map[string]string) []string) *wizardScreen {
+	w.review = f
+	return w
 }
 
 func newWizard(title string, fields []wizardField, onDone func(map[string]string) (screen, tea.Cmd), onCancel func() (screen, tea.Cmd)) *wizardScreen {
 	w := &wizardScreen{title: title, fields: fields, values: map[string]string{}, onDone: onDone, onCancel: onCancel}
+	w.review = w.answersReview
 	w.enterStep(0)
 	return w
 }
@@ -82,7 +130,11 @@ func (w *wizardScreen) enterStep(i int) {
 	case fieldText:
 		ti := textinput.New()
 		ti.Placeholder = f.Placeholder
-		ti.SetValue(f.Default)
+		val := f.Default
+		if prev, ok := w.values[f.Key]; ok {
+			val = prev
+		}
+		ti.SetValue(val)
 		ti.CursorEnd()
 		ti.Focus()
 		ti.Width = 50
@@ -93,14 +145,31 @@ func (w *wizardScreen) enterStep(i int) {
 		w.input = ti
 	case fieldBool:
 		w.boolCursor = 0
-		if f.BoolDefault {
+		if prev, ok := w.values[f.Key]; ok {
+			if prev == "yes" {
+				w.boolCursor = 1
+			}
+		} else if f.BoolDefault {
 			w.boolCursor = 1
 		}
 	case fieldChoice:
-		w.choiceIdx = 0
+		items := make([]menuItem, len(f.Options))
 		for j, opt := range f.Options {
-			if opt == f.ChoiceDefault {
-				w.choiceIdx = j
+			items[j] = menuItem{title: opt}
+		}
+		// Any list of more than a few entries can be searched with Ctrl+F.
+		if len(f.Options) >= choiceSearchMin {
+			w.menu = newSearchMenu(items, "type to filter the choices")
+		} else {
+			w.menu = newSimpleMenu(items)
+		}
+		want := f.ChoiceDefault
+		if prev, ok := w.values[f.Key]; ok {
+			want = prev
+		}
+		for j, opt := range f.Options {
+			if opt == want {
+				w.menu.cursor = j
 				break
 			}
 		}
@@ -116,83 +185,128 @@ func (w *wizardScreen) currentField() (wizardField, bool) {
 
 func (w *wizardScreen) Init() tea.Cmd { return textinput.Blink }
 
-func (w *wizardScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
-	f, ok := w.currentField()
-	if !ok {
+// advance records the answer to the current step and moves on: to the next
+// question, to the review, or to the end.
+func (w *wizardScreen) advance(key, val string) (screen, tea.Cmd) {
+	w.values[key] = val
+	w.path = append(w.path, w.idx)
+	w.enterStep(w.idx + 1)
+	if _, more := w.currentField(); !more {
+		return w.complete()
+	}
+	return w, textinput.Blink
+}
+
+// back returns to the question before the current one (or, from the review,
+// to the last question), keeping every answer given so far.
+func (w *wizardScreen) back() (screen, tea.Cmd) {
+	if w.reviewing {
+		w.reviewing = false
+	}
+	if len(w.path) == 0 {
 		return w, nil
 	}
+	prev := w.path[len(w.path)-1]
+	w.path = w.path[:len(w.path)-1]
+	w.enterStep(prev)
+	return w, textinput.Blink
+}
 
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+// complete is reached after the last question.
+func (w *wizardScreen) complete() (screen, tea.Cmd) {
+	if w.review != nil {
+		w.reviewing = true
+		return w, nil
+	}
+	return w.finish()
+}
+
+func (w *wizardScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
+	km, isKey := msg.(tea.KeyMsg)
+	if isKey && w.reviewing {
+		switch km.String() {
+		case "enter", "y":
+			return w.finish()
+		case "esc", "n":
 			if w.onCancel != nil {
 				return w.onCancel()
 			}
 			return w, navPop()
+		case "shift+tab", "up", "left", "k", "h", "b":
+			return w.back()
+		}
+		return w, nil
+	}
+
+	f, ok := w.currentField()
+	if !ok {
+		return w, nil
+	}
+	if !isKey {
+		return w, nil
+	}
+
+	// While the search box of a choice list is open, it gets every key but
+	// Enter (so Esc closes the search instead of cancelling the wizard).
+	if f.Kind == fieldChoice && w.menu.Searching() && km.String() != "enter" {
+		w.menu.HandleKey(km)
+		return w, nil
+	}
+
+	switch km.String() {
+	case "esc":
+		if w.onCancel != nil {
+			return w.onCancel()
+		}
+		return w, navPop()
+	case "shift+tab", "ctrl+b":
+		return w.back()
+	}
+
+	switch f.Kind {
+	case fieldText:
+		switch km.String() {
+		case "enter":
+			val := w.input.Value()
+			if f.Validate != nil {
+				if err := f.Validate(val); err != nil {
+					w.errMsg = err.Error()
+					return w, nil
+				}
+			}
+			return w.advance(f.Key, val)
+		case "up":
+			// A single-line field has no use for up: it goes back.
+			return w.back()
+		default:
+			var cmd tea.Cmd
+			w.input, cmd = w.input.Update(msg)
+			return w, cmd
 		}
 
-		switch f.Kind {
-		case fieldText:
-			switch msg.String() {
-			case "enter":
-				val := w.input.Value()
-				if f.Validate != nil {
-					if err := f.Validate(val); err != nil {
-						w.errMsg = err.Error()
-						return w, nil
-					}
-				}
-				w.values[f.Key] = val
-				w.enterStep(w.idx + 1)
-				if _, more := w.currentField(); !more {
-					return w.finish()
-				}
-				return w, textinput.Blink
-			default:
-				var cmd tea.Cmd
-				w.input, cmd = w.input.Update(msg)
-				return w, cmd
+	case fieldBool:
+		switch km.String() {
+		case "left", "h", "up", "k":
+			w.boolCursor = 0
+		case "right", "l", "down", "j":
+			w.boolCursor = 1
+		case " ":
+			w.boolCursor = 1 - w.boolCursor
+		case "enter":
+			val := "no"
+			if w.boolCursor == 1 {
+				val = "yes"
 			}
+			return w.advance(f.Key, val)
+		}
 
-		case fieldBool:
-			switch msg.String() {
-			case "left", "h", "up", "k":
-				w.boolCursor = 0
-			case "right", "l", "down", "j":
-				w.boolCursor = 1
-			case " ":
-				w.boolCursor = 1 - w.boolCursor
-			case "enter":
-				val := "no"
-				if w.boolCursor == 1 {
-					val = "yes"
-				}
-				w.values[f.Key] = val
-				w.enterStep(w.idx + 1)
-				if _, more := w.currentField(); !more {
-					return w.finish()
-				}
-				return w, textinput.Blink
-			}
-
-		case fieldChoice:
-			switch msg.String() {
-			case "up", "k":
-				if w.choiceIdx > 0 {
-					w.choiceIdx--
-				}
-			case "down", "j":
-				if w.choiceIdx < len(f.Options)-1 {
-					w.choiceIdx++
-				}
-			case "enter":
-				w.values[f.Key] = f.Options[w.choiceIdx]
-				w.enterStep(w.idx + 1)
-				if _, more := w.currentField(); !more {
-					return w.finish()
-				}
-				return w, textinput.Blink
+	case fieldChoice:
+		if w.menu.HandleKey(km) {
+			return w, nil
+		}
+		if km.String() == "enter" {
+			if sel := w.menu.Selected(); sel >= 0 {
+				return w.advance(f.Key, f.Options[sel])
 			}
 		}
 	}
@@ -206,11 +320,41 @@ func (w *wizardScreen) Update(msg tea.Msg) (screen, tea.Cmd) {
 // liveRunScreen relies on Init() to start listening for its background
 // run's progress messages at all.
 func (w *wizardScreen) finish() (screen, tea.Cmd) {
+	// Answers given before going back and changing a choice may belong to
+	// questions that are no longer asked; they must not leak into the result.
+	// Several questions may share a key (one per scope, say): a key stays
+	// as long as one of them is asked.
+	asked := map[string]bool{}
+	for _, f := range w.fields {
+		if f.ShowIf == nil || f.ShowIf(w.values) {
+			asked[f.Key] = true
+		}
+	}
+	for _, f := range w.fields {
+		if !asked[f.Key] {
+			delete(w.values, f.Key)
+		}
+	}
 	next, cmd := w.onDone(w.values)
 	return w, tea.Batch(cmd, navReplace(next))
 }
 
+func (w *wizardScreen) viewReview(width, height int) string {
+	body := headerStyle.Render(w.title) + "\n"
+	var lines []string
+	for _, line := range w.review(w.values) {
+		lines = append(lines, "• "+line)
+	}
+	body += callout(width-4, calloutInfo, "This is what will be applied", lines) + "\n"
+	body += mutedStyle.Render("Nothing is changed until you apply. The configuration is tested first, and put back if the test fails.")
+	help := [][2]string{{"Enter", "Apply"}, {"Shift+Tab/↑", "Back"}, {"Esc", "Cancel"}}
+	return renderFrame(width, height, "GONIX", body, help)
+}
+
 func (w *wizardScreen) View(width, height int) string {
+	if w.reviewing {
+		return w.viewReview(width, height)
+	}
 	f, ok := w.currentField()
 	if !ok {
 		return "Working..."
@@ -223,26 +367,15 @@ func (w *wizardScreen) View(width, height int) string {
 	case fieldText:
 		body += focusedInputStyle.Render(w.input.View())
 	case fieldBool:
-		no, yes := "No", "Yes"
+		no, yes := normalItemStyle.Render("  No  "), normalItemStyle.Render("  Yes  ")
 		if w.boolCursor == 0 {
-			no = selectedItemStyle.Render("▸ No")
+			no = renderSelected("  No  ", 0)
 		} else {
-			no = normalItemStyle.Render("  No")
-		}
-		if w.boolCursor == 1 {
-			yes = selectedItemStyle.Render("▸ Yes")
-		} else {
-			yes = normalItemStyle.Render("  Yes")
+			yes = renderSelected("  Yes  ", 0)
 		}
 		body += no + "    " + yes
 	case fieldChoice:
-		for i, opt := range f.Options {
-			if i == w.choiceIdx {
-				body += selectedItemStyle.Render("▸ "+opt) + "\n"
-			} else {
-				body += normalItemStyle.Render("  "+opt) + "\n"
-			}
-		}
+		body += w.menu.ViewFit(body, height-3)
 	}
 
 	body += "\n\n" + mutedStyle.Render(fmt.Sprintf("Step %d of %d", visibleStepIndex(w)+1, countVisibleSteps(w)))
@@ -251,7 +384,18 @@ func (w *wizardScreen) View(width, height int) string {
 		body += "\n\n" + errorBoxStyle.Render(w.errMsg)
 	}
 
-	help := [][2]string{{"Enter", "Next"}, {"Esc", "Cancel"}}
+	help := [][2]string{{"Enter", "Next"}}
+	if len(w.path) > 0 {
+		back := "Shift+Tab"
+		if f.Kind == fieldText {
+			back += "/↑"
+		}
+		help = append(help, [2]string{back, "Back"})
+	}
+	help = append(help, [2]string{"Esc", "Cancel"})
+	if f.Kind == fieldChoice {
+		help = searchHelp(w.menu, help)
+	}
 	return renderFrame(width, height, "GONIX", body, help)
 }
 

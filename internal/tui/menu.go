@@ -1,20 +1,22 @@
 package tui
 
 import (
-	"strings"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mrmmg/gonix/internal/certificates"
 	"github.com/mrmmg/gonix/internal/lab"
+	"github.com/mrmmg/gonix/internal/update"
 )
 
 // mainMenu is the application's entry screen.
 type mainMenu struct {
 	deps    Deps
 	menu    *simpleMenu
-	actions []int  // mi* action of each row, in display order
-	warning string // e.g. certificates about to expire
+	actions []int           // mi* action of each row, in display order
+	alerts  []string        // certificates that are expired or about to be
+	update  *update.Release // a newer GoNix release, when one is known
 }
 
 const (
@@ -33,6 +35,7 @@ const (
 	miConfigCheck
 	miHistory
 	miMonitoring
+	miUpdates
 	miSettings
 	miLab
 	miExit
@@ -55,11 +58,23 @@ func newMainMenu(deps Deps) *mainMenu {
 		{title: "Config Check", desc: "conflicts, missing files, expiring certificates, dead upstreams"},
 		{title: "Configuration History", desc: "every change as a Git commit; diff and restore"},
 		{title: "Monitoring", desc: "Prometheus exporter for Grafana: control and settings"},
-		{title: "Settings", desc: "GoNix configuration"},
+		{title: "Updates", desc: "check for a new GoNix release and how to install it"},
+		{title: "Settings", desc: "GoNix configuration and update options"},
 		{title: "Lab", desc: "a separate Nginx with hand-written test hosts, for trying GoNix"},
 		{title: "Exit", desc: ""},
 	}
-	m := &mainMenu{deps: deps, warning: certificateWarning(deps)}
+	m := &mainMenu{deps: deps, alerts: certAlerts(deps)}
+	if !inLab && deps.Config.Update.Check {
+		if rel, ok := knownRelease(deps); ok {
+			m.update = &rel
+		}
+	}
+	if m.update != nil {
+		all[miUpdates].desc = infoStyle.Render("version " + m.update.Version + " is available")
+	}
+	if len(m.alerts) > 0 {
+		all[miCertificates].desc = dangerStyle.Render("⚠ expiring or expired: needs attention")
+	}
 	var items []menuItem
 	for action, item := range all {
 		switch {
@@ -83,10 +98,31 @@ func (s *mainMenu) leave() tea.Cmd {
 	return tea.Quit
 }
 
-func (s *mainMenu) Init() tea.Cmd { return nil }
+// Init looks for a newer release in the background (at most once a day), so
+// opening GoNix is never slowed down by it.
+func (s *mainMenu) Init() tea.Cmd {
+	if inLab || !s.deps.Config.Update.Check {
+		return nil
+	}
+	if _, fresh, ok := update.ReadCache(update.CachePath(s.deps.Config.Logs.AuditFile)); ok && fresh {
+		return nil
+	}
+	return checkUpdateCmd(s.deps, false)
+}
 
 func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 	switch msg := msg.(type) {
+	case updateCheckedMsg:
+		if msg.err == nil && update.Newer(msg.rel.Tag, Version) && s.update == nil {
+			s.update = &msg.rel
+			for i, a := range s.actions {
+				if a == miUpdates {
+					items := s.menu.items
+					items[i].desc = infoStyle.Render("version " + msg.rel.Version + " is available")
+					s.menu.SetItems(items)
+				}
+			}
+		}
 	case tea.KeyMsg:
 		if s.menu.HandleKey(msg) {
 			return s, nil
@@ -128,6 +164,8 @@ func (s *mainMenu) Update(msg tea.Msg) (screen, tea.Cmd) {
 				return s, navPush(newHistoryScreen(s.deps))
 			case miMonitoring:
 				return s, navPush(newMonitoringScreen(s.deps))
+			case miUpdates:
+				return s, navPush(newUpdateScreen(s.deps))
 			case miSettings:
 				return s, navPush(newSettingsScreen(s.deps))
 			case miLab:
@@ -147,36 +185,50 @@ func (s *mainMenu) View(width, height int) string {
 	if inLab {
 		body += dangerStyle.Render("LAB: changes go to the lab's Nginx ("+s.deps.Config.Nginx.ConfigDir+"), not the real server") + "\n"
 	}
-	if s.warning != "" {
-		body += dangerStyle.Render("⚠ "+s.warning) + "\n"
+	if len(s.alerts) > 0 {
+		body += callout(width-4, calloutDanger, "Certificates need attention", s.alerts) + "\n"
+	}
+	if s.update != nil {
+		body += callout(width-4, calloutInfo, "GoNix "+s.update.Version+" is available (you have "+Version+")", []string{
+			"Update from a terminal:  sudo gonix update",
+			"Release notes and how it works: Updates menu",
+			"",
+			"Note: this check can be turned off in Settings (\"Check for updates\").",
+		}) + "\n"
 	}
 	body += s.menu.ViewFit(body, height)
 	help := [][2]string{{"↑↓", "Navigate"}, {"Enter", "Select"}, {"q", "Quit"}}
 	return renderFrame(width, height, "GONIX", body, help)
 }
 
-// certificateWarning summarizes certificates that are expired or due for
-// renewal, so they are noticed without opening the Certificates screen.
-func certificateWarning(deps Deps) string {
-	certs, err := certificates.Scan(deps.Config.Certificates.Directory)
-	if err != nil {
-		return ""
-	}
-	var expired, due []string
-	for _, c := range certs {
-		switch {
-		case c.Status == certificates.StatusExpired:
-			expired = append(expired, c.Domain)
-		case c.DueForRenewal():
-			due = append(due, c.Domain)
+// certAlerts lists, one line each and with the names lined up, the
+// certificates (GoNix's and Let's Encrypt's) that are expired or have 14
+// days or less left, so they are noticed without opening the Certificates
+// screen. A long list is cut, with a pointer to the Certificates screen.
+func certAlerts(deps Deps) []string {
+	const most = 5
+	var list []certificates.Certificate
+	for _, c := range allCerts(deps) {
+		if c.NeedsAttention() {
+			list = append(list, c)
 		}
 	}
-	var parts []string
-	if len(expired) > 0 {
-		parts = append(parts, "expired certificates: "+strings.Join(expired, ", "))
+	w := certNameWidth(list)
+	var out []string
+	for i, c := range list {
+		if i == most {
+			out = append(out, fmt.Sprintf("… and %d more — open Certificates to see them all", len(list)-most))
+			break
+		}
+		out = append(out, fmt.Sprintf("%-*s  %-15s  %s", w, c.Domain, "["+c.SourceLabel()+"]", c.Short()))
 	}
-	if len(due) > 0 {
-		parts = append(parts, "due for renewal: "+strings.Join(due, ", "))
+	return out
+}
+
+func certNameWidth(certs []certificates.Certificate) int {
+	w := 0
+	for _, c := range certs {
+		w = max(w, len([]rune(c.Domain)))
 	}
-	return strings.Join(parts, "; ")
+	return w
 }
